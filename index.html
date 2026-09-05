@@ -108,7 +108,7 @@
     <div id="homeSectionsContainer">
         <details open>
             <summary>⚡ Top 20 Recommended Flips</summary>
-            <div id="recContainer" class="loading-overlay">Loading top recommendations...</div>
+            <div id="recContainer" class="loading-overlay">Loading top recommendations from Turso...</div>
         </details>
         <details>
             <summary>🌙 Top 20 Recommended Overnight Flips (High Volume)</summary>
@@ -132,7 +132,7 @@
                     <tr id="tableHeaders"></tr>
                 </thead>
                 <tbody id="tableBody">
-                    <tr><td colspan="8" class="loading-overlay">Loading data from Turso...</td></tr>
+                    <tr><td colspan="8" class="loading-overlay">Loading data from Turso cloud...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -186,7 +186,150 @@
         const TURSO_URL = "https://osrsflips-soharuda.aws-us-east-2.turso.io/v2/pipeline";
         const TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicm8iLCJnaWQiOiJjZjYxMWNiOC1iZGQ3LTQ3ZTUtOTgzMy0wOTczNmMxNzZlYWMiLCJpYXQiOjE3ODg2NDk2OTcsImtpZCI6InVjeGlNN2w2emt3bnFqaGZJM3dxbDZQZHZnU2Zub29IVWFZWVZPelA4cmsiLCJyaWQiOiI3YmEyMGE1Yy0yNmQ5LTRhNjQtYTY3ZC03NGEyMWMyNzYwMGUifQ.NZ5KHbj3iNJhJ7mVHa1lkCglb9EJV7K1BrBpZYcEYtpnG0z137jQw1EwJcvX1BL2lkNYWz2AjBKHr4P80zdfDQ";
 
-        let cachedItems = null;
+        const F2P_RECIPES = [
+            {"id": 2349, "name": "Bronze bar", "type": "smithing_bronze", "level": 1, "ing": [(436, "Copper ore", 1), (438, "Tin ore", 1)]},
+            {"id": 1205, "name": "Bronze dagger", "type": "smithing_bronze", "level": 1, "ing": [(2349, "Bronze bar", 1)]},
+            {"id": 1351, "name": "Bronze axe", "type": "smithing_bronze", "level": 1, "ing": [(2349, "Bronze bar", 1)]},
+            {"id": 1422, "name": "Bronze mace", "type": "smithing_bronze", "level": 2, "ing": [(2349, "Bronze bar", 1)]},
+            {"id": 1139, "name": "Bronze med helm", "type": "smithing_bronze", "level": 3, "ing": [(2349, "Bronze bar", 1)]},
+            {"id": 1277, "name": "Bronze sword", "type": "smithing_bronze", "level": 4, "ing": [(2349, "Bronze bar", 1)]},
+            {"id": 1321, "name": "Bronze scimitar", "type": "smithing_bronze", "level": 5, "ing": [(2349, "Bronze bar", 2)]},
+            {"id": 1291, "name": "Bronze longsword", "type": "smithing_bronze", "level": 6, "ing": [(2349, "Bronze bar", 2)]},
+            {"id": 1155, "name": "Bronze full helm", "type": "smithing_bronze", "level": 7, "ing": [(2349, "Bronze bar", 2)]},
+            {"id": 1189, "name": "Bronze sq shield", "type": "smithing_bronze", "level": 8, "ing": [(2349, "Bronze bar", 2)]},
+            {"id": 1173, "name": "Bronze kiteshield", "type": "smithing_bronze", "level": 12, "ing": [(2349, "Bronze bar", 3)]},
+            {"id": 1307, "name": "Bronze 2h sword", "type": "smithing_bronze", "level": 14, "ing": [(2349, "Bronze bar", 3)]},
+            {"id": 1075, "name": "Bronze platelegs", "type": "smithing_bronze", "level": 16, "ing": [(2349, "Bronze bar", 3)]},
+            {"id": 1087, "name": "Bronze plateskirt", "type": "smithing_bronze", "level": 16, "ing": [(2349, "Bronze bar", 3)]},
+            {"id": 1117, "name": "Bronze platebody", "type": "smithing_bronze", "level": 18, "ing": [(2349, "Bronze bar", 5)]},
+            {"id": 2351, "name": "Iron bar", "type": "smithing_iron", "level": 15, "ing": [(440, "Iron ore", 1)]},
+            {"id": 1203, "name": "Iron dagger", "type": "smithing_iron", "level": 15, "ing": [(2351, "Iron bar", 1)]},
+            {"id": 1349, "name": "Iron axe", "type": "smithing_iron", "level": 16, "ing": [(2351, "Iron bar", 1)]},
+            {"id": 1420, "name": "Iron mace", "type": "smithing_iron", "level": 17, "ing": [(2351, "Iron bar", 1)]},
+            {"id": 1137, "name": "Iron med helm", "type": "smithing_iron", "level": 18, "ing": [(2351, "Iron bar", 1)]},
+            {"id": 1279, "name": "Iron sword", "type": "smithing_iron", "level": 19, "ing": [(2351, "Iron bar", 1)]},
+            {"id": 1323, "name": "Iron scimitar", "type": "smithing_iron", "level": 20, "ing": [(2351, "Iron bar", 2)]},
+            {"id": 1293, "name": "Iron longsword", "type": "smithing_iron", "level": 21, "ing": [(2351, "Iron bar", 2)]},
+            {"id": 1153, "name": "Iron full helm", "type": "smithing_iron", "level": 22, "ing": [(2351, "Iron bar", 2)]},
+            {"id": 1191, "name": "Iron sq shield", "type": "smithing_iron", "level": 23, "ing": [(2351, "Iron bar", 2)]},
+            {"id": 1193, "name": "Iron kiteshield", "type": "smithing_iron", "level": 27, "ing": [(2351, "Iron bar", 3)]},
+            {"id": 1309, "name": "Iron 2h sword", "type": "smithing_iron", "level": 29, "ing": [(2351, "Iron bar", 3)]},
+            {"id": 1067, "name": "Iron platelegs", "type": "smithing_iron", "level": 31, "ing": [(2351, "Iron bar", 3)]},
+            {"id": 1081, "name": "Iron plateskirt", "type": "smithing_iron", "level": 31, "ing": [(2351, "Iron bar", 3)]},
+            {"id": 1115, "name": "Iron platebody", "type": "smithing_iron", "level": 33, "ing": [(2351, "Iron bar", 5)]},
+            {"id": 2353, "name": "Steel bar", "type": "smithing_steel", "level": 30, "ing": [(440, "Iron ore", 1), (453, "Coal", 2)]},
+            {"id": 1207, "name": "Steel dagger", "type": "smithing_steel", "level": 30, "ing": [(2353, "Steel bar", 1)]},
+            {"id": 1353, "name": "Steel axe", "type": "smithing_steel", "level": 31, "ing": [(2353, "Steel bar", 1)]},
+            {"id": 1424, "name": "Steel mace", "type": "smithing_steel", "level": 32, "ing": [(2353, "Steel bar", 1)]},
+            {"id": 1141, "name": "Steel med helm", "type": "smithing_steel", "level": 33, "ing": [(2353, "Steel bar", 1)]},
+            {"id": 1281, "name": "Steel sword", "type": "smithing_steel", "level": 34, "ing": [(2353, "Steel bar", 1)]},
+            {"id": 1539, "name": "Steel nails", "type": "smithing_steel", "level": 34, "yield": 15, "ing": [(2353, "Steel bar", 1)]},
+            {"id": 1325, "name": "Steel scimitar", "type": "smithing_steel", "level": 35, "ing": [(2353, "Steel bar", 2)]},
+            {"id": 1295, "name": "Steel longsword", "type": "smithing_steel", "level": 36, "ing": [(2353, "Steel bar", 2)]},
+            {"id": 1157, "name": "Steel full helm", "type": "smithing_steel", "level": 37, "ing": [(2353, "Steel bar", 2)]},
+            {"id": 1195, "name": "Steel sq shield", "type": "smithing_steel", "level": 38, "ing": [(2353, "Steel bar", 2)]},
+            {"id": 1175, "name": "Steel kiteshield", "type": "smithing_steel", "level": 42, "ing": [(2353, "Steel bar", 3)]},
+            {"id": 1311, "name": "Steel 2h sword", "type": "smithing_steel", "level": 44, "ing": [(2353, "Steel bar", 3)]},
+            {"id": 1069, "name": "Steel platelegs", "type": "smithing_steel", "level": 46, "ing": [(2353, "Steel bar", 3)]},
+            {"id": 1083, "name": "Steel plateskirt", "type": "smithing_steel", "level": 46, "ing": [(2353, "Steel bar", 3)]},
+            {"id": 1119, "name": "Steel platebody", "type": "smithing_steel", "level": 48, "ing": [(2353, "Steel bar", 5)]},
+            {"id": 2359, "name": "Mithril bar", "type": "smithing_mithril", "level": 50, "ing": [(447, "Mithril ore", 1), (453, "Coal", 4)]},
+            {"id": 1209, "name": "Mithril dagger", "type": "smithing_mithril", "level": 50, "ing": [(2359, "Mithril bar", 1)]},
+            {"id": 1355, "name": "Mithril axe", "type": "smithing_mithril", "level": 51, "ing": [(2359, "Mithril bar", 1)]},
+            {"id": 1428, "name": "Mithril mace", "type": "smithing_mithril", "level": 52, "ing": [(2359, "Mithril bar", 1)]},
+            {"id": 1143, "name": "Mithril med helm", "type": "smithing_mithril", "level": 53, "ing": [(2359, "Mithril bar", 1)]},
+            {"id": 1285, "name": "Mithril sword", "type": "smithing_mithril", "level": 54, "ing": [(2359, "Mithril bar", 1)]},
+            {"id": 1329, "name": "Mithril scimitar", "type": "smithing_mithril", "level": 55, "ing": [(2359, "Mithril bar", 2)]},
+            {"id": 1297, "name": "Mithril longsword", "type": "smithing_mithril", "level": 56, "ing": [(2359, "Mithril bar", 2)]},
+            {"id": 1159, "name": "Mithril full helm", "type": "smithing_mithril", "level": 57, "ing": [(2359, "Mithril bar", 2)]},
+            {"id": 1197, "name": "Mithril sq shield", "type": "smithing_mithril", "level": 58, "ing": [(2359, "Mithril bar", 2)]},
+            {"id": 1181, "name": "Mithril kiteshield", "type": "smithing_mithril", "level": 62, "ing": [(2359, "Mithril bar", 3)]},
+            {"id": 1313, "name": "Mithril 2h sword", "type": "smithing_mithril", "level": 64, "ing": [(2359, "Mithril bar", 3)]},
+            {"id": 1071, "name": "Mithril platelegs", "type": "smithing_mithril", "level": 66, "ing": [(2359, "Mithril bar", 3)]},
+            {"id": 1085, "name": "Mithril plateskirt", "type": "smithing_mithril", "level": 66, "ing": [(2359, "Mithril bar", 3)]},
+            {"id": 1121, "name": "Mithril platebody", "type": "smithing_mithril", "level": 68, "ing": [(2359, "Mithril bar", 5)]},
+            {"id": 2361, "name": "Adamantite bar", "type": "smithing_adamant", "level": 70, "ing": [(449, "Adamantite ore", 1), (453, "Coal", 6)]},
+            {"id": 1213, "name": "Adamant dagger", "type": "smithing_adamant", "level": 70, "ing": [(2361, "Adamantite bar", 1)]},
+            {"id": 1357, "name": "Adamant axe", "type": "smithing_adamant", "level": 71, "ing": [(2361, "Adamantite bar", 1)]},
+            {"id": 1430, "name": "Adamant mace", "type": "smithing_adamant", "level": 72, "ing": [(2361, "Adamantite bar", 1)]},
+            {"id": 1145, "name": "Adamant med helm", "type": "smithing_adamant", "level": 73, "ing": [(2361, "Adamantite bar", 1)]},
+            {"id": 1287, "name": "Adamant sword", "type": "smithing_adamant", "level": 74, "ing": [(2361, "Adamantite bar", 1)]},
+            {"id": 1331, "name": "Adamant scimitar", "type": "smithing_adamant", "level": 75, "ing": [(2361, "Adamantite bar", 2)]},
+            {"id": 1299, "name": "Adamant longsword", "type": "smithing_adamant", "level": 76, "ing": [(2361, "Adamantite bar", 2)]},
+            {"id": 1161, "name": "Adamant full helm", "type": "smithing_adamant", "level": 77, "ing": [(2361, "Adamantite bar", 2)]},
+            {"id": 1199, "name": "Adamant sq shield", "type": "smithing_adamant", "level": 78, "ing": [(2361, "Adamantite bar", 2)]},
+            {"id": 1183, "name": "Adamant kiteshield", "type": "smithing_adamant", "level": 82, "ing": [(2361, "Adamantite bar", 3)]},
+            {"id": 1315, "name": "Adamant 2h sword", "type": "smithing_adamant", "level": 84, "ing": [(2361, "Adamantite bar", 3)]},
+            {"id": 1073, "name": "Adamant platelegs", "type": "smithing_adamant", "level": 86, "ing": [(2361, "Adamantite bar", 3)]},
+            {"id": 1091, "name": "Adamant plateskirt", "type": "smithing_adamant", "level": 86, "ing": [(2361, "Adamantite bar", 3)]},
+            {"id": 1123, "name": "Adamant platebody", "type": "smithing_adamant", "level": 88, "ing": [(2361, "Adamantite bar", 5)]},
+            {"id": 2363, "name": "Runite bar", "type": "smithing_runite", "level": 85, "ing": [(451, "Runite ore", 1), (453, "Coal", 8)]},
+            {"id": 1215, "name": "Rune dagger", "type": "smithing_runite", "level": 85, "ing": [(2363, "Runite bar", 1)]},
+            {"id": 1359, "name": "Rune axe", "type": "smithing_runite", "level": 86, "ing": [(2363, "Runite bar", 1)]},
+            {"id": 1432, "name": "Rune mace", "type": "smithing_runite", "level": 87, "ing": [(2363, "Runite bar", 1)]},
+            {"id": 1147, "name": "Rune med helm", "type": "smithing_runite", "level": 88, "ing": [(2363, "Runite bar", 1)]},
+            {"id": 1289, "name": "Rune sword", "type": "smithing_runite", "level": 89, "ing": [(2363, "Runite bar", 1)]},
+            {"id": 1333, "name": "Rune scimitar", "type": "smithing_runite", "level": 90, "ing": [(2363, "Runite bar", 2)]},
+            {"id": 1301, "name": "Rune longsword", "type": "smithing_runite", "level": 91, "ing": [(2363, "Runite bar", 2)]},
+            {"id": 1163, "name": "Rune full helm", "type": "smithing_runite", "level": 92, "ing": [(2363, "Runite bar", 2)]},
+            {"id": 1201, "name": "Rune sq shield", "type": "smithing_runite", "level": 93, "ing": [(2363, "Runite bar", 2)]},
+            {"id": 1185, "name": "Rune kiteshield", "type": "smithing_runite", "level": 97, "ing": [(2363, "Runite bar", 3)]},
+            {"id": 1317, "name": "Rune 2h sword", "type": "smithing_runite", "level": 99, "ing": [(2363, "Runite bar", 3)]},
+            {"id": 1079, "name": "Rune platelegs", "type": "smithing_runite", "level": 99, "ing": [(2363, "Runite bar", 3)]},
+            {"id": 1093, "name": "Rune plateskirt", "type": "smithing_runite", "level": 99, "ing": [(2363, "Runite bar", 3)]},
+            {"id": 1127, "name": "Rune platebody", "type": "smithing_runite", "level": 99, "ing": [(2363, "Runite bar", 5)]},
+            {"id": 1607, "name": "Sapphire", "type": "crafting_jewelry", "level": 20, "ing": [(1623, "Uncut sapphire", 1)]},
+            {"id": 1605, "name": "Emerald", "type": "crafting_jewelry", "level": 27, "ing": [(1621, "Uncut emerald", 1)]},
+            {"id": 1603, "name": "Ruby", "type": "crafting_jewelry", "level": 34, "ing": [(1619, "Uncut ruby", 1)]},
+            {"id": 1601, "name": "Diamond", "type": "crafting_jewelry", "level": 43, "ing": [(1617, "Uncut diamond", 1)]},
+            {"id": 1635, "name": "Gold ring", "type": "crafting_jewelry", "level": 5, "ing": [(2357, "Gold bar", 1)]},
+            {"id": 1637, "name": "Sapphire ring", "type": "crafting_jewelry", "level": 20, "ing": [(2357, "Gold bar", 1), (1607, "Sapphire", 1)]},
+            {"id": 1639, "name": "Emerald ring", "type": "crafting_jewelry", "level": 27, "ing": [(2357, "Gold bar", 1), (1605, "Emerald", 1)]},
+            {"id": 1641, "name": "Ruby ring", "type": "crafting_jewelry", "level": 34, "ing": [(2357, "Gold bar", 1), (1603, "Ruby", 1)]},
+            {"id": 1643, "name": "Diamond ring", "type": "crafting_jewelry", "level": 43, "ing": [(2357, "Gold bar", 1), (1601, "Diamond", 1)]},
+            {"id": 1654, "name": "Gold necklace", "type": "crafting_jewelry", "level": 6, "ing": [(2357, "Gold bar", 1)]},
+            {"id": 1656, "name": "Sapphire necklace", "type": "crafting_jewelry", "level": 22, "ing": [(2357, "Gold bar", 1), (1607, "Sapphire", 1)]},
+            {"id": 1658, "name": "Emerald necklace", "type": "crafting_jewelry", "level": 29, "ing": [(2357, "Gold bar", 1), (1605, "Emerald", 1)]},
+            {"id": 1660, "name": "Ruby necklace", "type": "crafting_jewelry", "level": 40, "ing": [(2357, "Gold bar", 1), (1603, "Ruby", 1)]},
+            {"id": 1662, "name": "Diamond necklace", "type": "crafting_jewelry", "level": 56, "ing": [(2357, "Gold bar", 1), (1601, "Diamond", 1)]},
+            {"id": 1673, "name": "Gold amulet (u)", "type": "crafting_jewelry", "level": 8, "ing": [(2357, "Gold bar", 1)]},
+            {"id": 1675, "name": "Sapphire amulet (u)", "type": "crafting_jewelry", "level": 24, "ing": [(2357, "Gold bar", 1), (1607, "Sapphire", 1)]},
+            {"id": 1677, "name": "Emerald amulet (u)", "type": "crafting_jewelry", "level": 31, "ing": [(2357, "Gold bar", 1), (1605, "Emerald", 1)]},
+            {"id": 1679, "name": "Ruby amulet (u)", "type": "crafting_jewelry", "level": 50, "ing": [(2357, "Gold bar", 1), (1603, "Ruby", 1)]},
+            {"id": 1681, "name": "Diamond amulet (u)", "type": "crafting_jewelry", "level": 70, "ing": [(2357, "Gold bar", 1), (1601, "Diamond", 1)]},
+            {"id": 5523, "name": "Tiara", "type": "crafting_jewelry", "level": 23, "ing": [(2355, "Silver bar", 1)]},
+            {"id": 1718, "name": "Unstrung holy symbol", "type": "crafting_jewelry", "level": 16, "ing": [(2355, "Silver bar", 1)]},
+            {"id": 1059, "name": "Leather gloves", "type": "crafting_leather", "level": 1, "ing": [(1741, "Leather", 1)]},
+            {"id": 1061, "name": "Leather boots", "type": "crafting_leather", "level": 7, "ing": [(1741, "Leather", 1)]},
+            {"id": 1167, "name": "Leather cowl", "type": "crafting_leather", "level": 9, "ing": [(1741, "Leather", 1)]},
+            {"id": 1063, "name": "Leather vambraces", "type": "crafting_leather", "level": 11, "ing": [(1741, "Leather", 1)]},
+            {"id": 1129, "name": "Leather body", "type": "crafting_leather", "level": 14, "ing": [(1741, "Leather", 1)]},
+            {"id": 1095, "name": "Leather chaps", "type": "crafting_leather", "level": 18, "ing": [(1741, "Leather", 1)]},
+            {"id": 1131, "name": "Hardleather body", "type": "crafting_leather", "level": 28, "ing": [(1743, "Hard leather", 1)]},
+            {"id": 315, "name": "Shrimps", "type": "cooking", "level": 1, "ing": [(317, "Raw shrimps", 1)]},
+            {"id": 319, "name": "Anchovies", "type": "cooking", "level": 1, "ing": [(321, "Raw anchovies", 1)]},
+            {"id": 329, "name": "Salmon", "type": "cooking", "level": 25, "ing": [(331, "Raw salmon", 1)]},
+            {"id": 361, "name": "Tuna", "type": "cooking", "level": 30, "ing": [(359, "Raw tuna", 1)]},
+            {"id": 379, "name": "Lobster", "type": "cooking", "level": 40, "ing": [(377, "Raw lobster", 1)]},
+            {"id": 373, "name": "Swordfish", "type": "cooking", "level": 50, "ing": [(371, "Raw swordfish", 1)]},
+            {"id": 333, "name": "Trout", "type": "cooking", "level": 15, "ing": [(335, "Raw trout", 1)]},
+            {"id": 339, "name": "Cod", "type": "cooking", "level": 18, "ing": [(341, "Raw cod", 1)]},
+            {"id": 351, "name": "Pike", "type": "cooking", "level": 20, "ing": [(349, "Raw pike", 1)]},
+            {"id": 2142, "name": "Cooked meat", "type": "cooking", "level": 1, "ing": [(2146, "Raw meat", 1)]},
+            {"id": 2871, "name": "Pie shell", "type": "cooking", "level": 10, "ing": [(1953, "Pastry dough", 1), (2313, "Pie dish", 1)]},
+            {"id": 2323, "name": "Uncooked berry pie", "type": "cooking", "level": 10, "ing": [(2871, "Pie shell", 1), (1951, "Redberries", 1)]},
+            {"id": 2327, "name": "Uncooked meat pie", "type": "cooking", "level": 20, "ing": [(2871, "Pie shell", 1), (2142, "Cooked meat", 1)]},
+            {"id": 2317, "name": "Uncooked apple pie", "type": "cooking", "level": 30, "ing": [(2871, "Pie shell", 1), (1955, "Cooking apple", 1)]},
+            {"id": 1993, "name": "Jug of wine", "type": "cooking", "level": 35, "ing": [(1987, "Grapes", 1), (1937, "Jug of water", 1)]},
+            {"id": 2289, "name": "Plain pizza", "type": "cooking", "level": 35, "ing": [(2283, "Pizza base", 1), (1982, "Tomato", 1), (1985, "Cheese", 1)]},
+            {"id": 2293, "name": "Meat pizza", "type": "cooking", "level": 45, "ing": [(2289, "Plain pizza", 1), (2142, "Cooked meat", 1)]},
+            {"id": 2297, "name": "Anchovy pizza", "type": "cooking", "level": 55, "ing": [(2289, "Plain pizza", 1), (319, "Anchovies", 1)]},
+            {"id": 2011, "name": "Uncooked stew", "type": "cooking", "level": 25, "ing": [(1923, "Bowl of water", 1), (2146, "Meat", 1), (1942, "Potato", 1)]},
+            {"id": 2108, "name": "Cake", "type": "cooking", "level": 40, "ing": [(1933, "Pot of flour", 1), (1927, "Bucket of milk", 1), (1940, "Egg", 1)]}
+        ];
+
+        let cachedItemsMap = {};
+        let cachedRecipes = null;
         let itemHistories = {};
         let wikiMapping = {};
 
@@ -234,12 +377,11 @@
             return wikiMapping;
         }
 
-        async function loadAllItemsData() {
-            if (cachedItems) return cachedItems;
+        async function loadMarketData() {
+            if (Object.keys(cachedItemsMap).length > 0) return cachedItemsMap;
 
             let mapping = await fetchWikiMapping();
             
-            // Query latest prices and 24h volumes from Turso
             let rows = await queryTurso(`
                 SELECT i.id, i.name, i.buy_limit, 
                        p.high_price, p.low_price, 
@@ -249,7 +391,7 @@
                 LEFT JOIN price_history v ON i.id = v.item_id AND v.timestep = '24h' AND v.timestamp = (SELECT MAX(timestamp) FROM price_history WHERE item_id = i.id AND timestep = '24h')
             `);
 
-            let items = [];
+            let lookup = {};
             rows.forEach(r => {
                 let id = parseInt(r[0].value);
                 let name = r[1].value;
@@ -265,29 +407,104 @@
                 let alchVal = parseInt(meta.highalch || 0);
                 let tax = sell > 0 ? Math.min(Math.floor(sell * 0.01), 5000000) : 0;
                 let margin = (buy > 0 && sell > 0) ? sell - buy - tax : 0;
-                let alchProfit = (alchVal > 0 && buy > 0) ? alchVal - buy - 561 : 0; // 561 = Nature rune ID cost approx or static
+                let alchProfit = (alchVal > 0 && buy > 0) ? alchVal - buy - 561 : 0;
 
-                items.push({
+                lookup[id] = {
                     id: id,
                     name: name,
                     icon: icon,
                     buy: buy,
                     sell: sell,
+                    high: sell,
+                    low: buy,
                     tax: tax,
                     margin: margin,
                     volume: volume,
                     limit: limit,
                     alch_value: alchVal,
                     alch_profit: alchProfit
+                };
+            });
+
+            cachedItemsMap = lookup;
+            return lookup;
+        }
+
+        async function getCalculatedRecipes() {
+            if (cachedRecipes) return cachedRecipes;
+            let itemLookup = await loadMarketData();
+            let mapping = await fetchWikiMapping();
+            let natureRune = itemLookup[561];
+            let naturePrice = natureRune ? natureRune.low : 561;
+
+            let output = [];
+            F2P_RECIPES.forEach(recipe => {
+                let product = itemLookup[recipe.id];
+                if (!product || product.high <= 0) return;
+
+                let yieldQty = recipe.yield || 1;
+                let ingredients = [];
+                let cost = 0;
+                let valid = true;
+
+                recipe.ing.forEach(([ingId, ingName, qty]) => {
+                    let ingItem = itemLookup[ingId];
+                    if (!ingItem || ingItem.low <= 0) {
+                        valid = false;
+                        return;
+                    }
+                    let lineCost = ingItem.low * qty;
+                    cost += lineCost;
+                    let meta = mapping[ingId] || {};
+                    let ingIcon = meta.icon ? (meta.icon.startsWith("http") ? meta.icon : "https://oldschool.runescape.wiki/images/" + meta.icon.replace(/ /g, "_")) : "https://oldschool.runescape.wiki/images/Placeholder.png";
+
+                    ingredients.push({
+                        id: ingId,
+                        name: ingName,
+                        quantity: qty,
+                        price: ingItem.low,
+                        cost: lineCost,
+                        icon: ingIcon
+                    });
+                });
+
+                if (!valid) return;
+
+                let singleSell = product.high;
+                let sell = singleSell * yieldQty;
+                let singleTax = singleSell > 0 ? Math.min(Math.floor(singleSell * 0.01), 5000000) : 0;
+                let tax = singleTax * yieldQty;
+                let profit = sell - cost - tax;
+                let alchVal = parseInt(mapping[recipe.id]?.highalch || 0);
+                let alchProfit = alchVal > 0 ? (alchVal * yieldQty) - cost - (naturePrice * yieldQty) : 0;
+                let metaProd = mapping[recipe.id] || {};
+                let prodIcon = metaProd.icon ? (metaProd.icon.startsWith("http") ? metaProd.icon : "https://oldschool.runescape.wiki/images/" + metaProd.icon.replace(/ /g, "_")) : "https://oldschool.runescape.wiki/images/Placeholder.png";
+
+                output.push({
+                    id: recipe.id,
+                    name: recipe.name,
+                    type: recipe.type,
+                    level: recipe.level,
+                    yield: yieldQty,
+                    icon: prodIcon,
+                    ingredients: ingredients,
+                    cost: cost,
+                    sell: sell,
+                    tax: tax,
+                    profit: profit,
+                    margin: cost > 0 ? (profit / cost) * 100 : 0,
+                    alch_value: alchVal,
+                    alch_profit: alchProfit
                 });
             });
 
-            cachedItems = items;
-            return items;
+            cachedRecipes = output;
+            return output;
         }
 
         async function initDashboard() {
-            let items = await loadAllItemsData();
+            let itemsMap = await loadMarketData();
+            let items = Object.values(itemsMap);
             renderHomeView(items);
         }
 
@@ -323,6 +540,38 @@
             });
         }
 
+        function setParentSkill(skill, btn) {
+            currentParentSkill = skill;
+            document.querySelectorAll('.parent-sub-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            currentSubFilter = "all";
+            currentPage = 1;
+            const smithingTabs = document.getElementById('smithingSubTabs');
+            const craftingTabs = document.getElementById('craftingSubTabs');
+
+            smithingTabs.style.display = "none";
+            craftingTabs.style.display = "none";
+
+            if (skill === 'smithing') {
+                smithingTabs.style.display = "flex";
+                smithingTabs.querySelector('.child-sub-btn').classList.add('active');
+            } else if (skill === 'crafting') {
+                craftingTabs.style.display = "flex";
+                craftingTabs.querySelector('.child-sub-btn').classList.add('active');
+            }
+            filterAndSortTable();
+        }
+
+        function setSubFilter(filter, btn) {
+            currentSubFilter = filter;
+            currentPage = 1;
+            let parentContainer = btn.parentElement;
+            parentContainer.querySelectorAll('.child-sub-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            filterAndSortTable();
+        }
+
         async function setCategory(cat, btn) {
             currentCategory = cat;
             currentPage = 1;
@@ -331,12 +580,19 @@
             
             const homeSections = document.getElementById('homeSectionsContainer');
             const tableWrapper = document.getElementById('searchAndTableWrapper');
+            const parentSubTabs = document.getElementById('parentSubTabs');
+            const smithingTabs = document.getElementById('smithingSubTabs');
+            const craftingTabs = document.getElementById('craftingSubTabs');
+
+            parentSubTabs.style.display = "none";
+            smithingTabs.style.display = "none";
+            craftingTabs.style.display = "none";
 
             if (cat === 'home') {
                 homeSections.style.display = "block";
                 tableWrapper.style.display = "none";
-                let items = await loadAllItemsData();
-                renderHomeView(items);
+                let itemsMap = await loadMarketData();
+                renderHomeView(Object.values(itemsMap));
             } else {
                 homeSections.style.display = "none";
                 tableWrapper.style.display = "block";
@@ -351,6 +607,24 @@
                         <th onclick="toggleSort('alch_value')">Alch Value ↕</th>
                         <th onclick="toggleSort('alch_profit')">Profit/Cast ↕</th>
                         <th onclick="toggleSort('limit')">Limit ↕</th>
+                    `;
+                } else if (cat === 'crafting') {
+                    parentSubTabs.style.display = "flex";
+                    if (currentParentSkill === 'smithing') smithingSubTabs.style.display = "flex";
+                    if (currentParentSkill === 'crafting') craftingSubTabs.style.display = "flex";
+
+                    sortField = "level";
+                    sortAsc = false;
+
+                    document.getElementById('tableHeaders').innerHTML = `
+                        <th>Icon</th>
+                        <th onclick="toggleSort('name')">Product ↕</th>
+                        <th onclick="toggleSort('level')">Lvl ↕</th>
+                        <th>Ingredients Required</th>
+                        <th onclick="toggleSort('cost')">Craft Cost ↕</th>
+                        <th onclick="toggleSort('sell')">Sell Price ↕</th>
+                        <th onclick="toggleSort('profit')">GE Profit ↕</th>
+                        <th onclick="toggleSort('alch_profit')">Alch Profit ↕</th>
                     `;
                 } else {
                     sortField = "volume";
@@ -368,7 +642,8 @@
                 }
                 
                 document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="loading-overlay">Loading data...</td></tr>`;
-                await loadAllItemsData();
+                if (cat === 'crafting') await getCalculatedRecipes();
+                else await loadMarketData();
                 filterAndSortTable();
             }
         }
@@ -438,6 +713,25 @@
                         <td class="${alchClass}">${alchSign}${item.alch_profit.toLocaleString()}</td>
                         <td>${item.limit.toLocaleString()}</td>
                     `;
+                } else if (currentCategory === 'crafting') {
+                    let profitClass = item.profit > 0 ? "highlight" : "neg-highlight";
+                    let profitSign = item.profit > 0 ? "+" : "";
+                    let alchClass = item.alch_profit > 0 ? "alch-highlight" : "neg-highlight";
+                    let alchSign = item.alch_profit > 0 ? "+" : "";
+                    
+                    let ingText = item.ingredients.map(ing => `${ing.quantity}x ${ing.name}`).join(', ');
+                    let yieldText = item.yield > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield}x)</span>` : "";
+
+                    tr.innerHTML = `
+                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
+                        <td><b>${item.name}</b>${yieldText}</td>
+                        <td><span style="color:#FF9800; font-weight:bold;">${item.level}</span></td>
+                        <td class="ing-text">${ingText}</td>
+                        <td>${item.cost.toLocaleString()}</td>
+                        <td>${item.sell.toLocaleString()}</td>
+                        <td class="${profitClass}">${profitSign}${item.profit.toLocaleString()}</td>
+                        <td class="${alchClass}">${alchSign}${item.alch_profit.toLocaleString()}</td>
+                    `;
                 } else {
                     let volColor = getVolumeColor(item.volume);
                     let marginClass = item.margin > 0 ? "highlight" : "neg-highlight";
@@ -457,12 +751,31 @@
             });
         }
 
-        function filterAndSortTable() {
-            if (!cachedItems) return;
+        async function filterAndSortTable() {
+            let sourceData = [];
+            if (currentCategory === 'crafting') {
+                sourceData = await getCalculatedRecipes();
+            } else {
+                let itemsMap = await loadMarketData();
+                sourceData = Object.values(itemsMap);
+            }
 
             const query = document.getElementById('searchInput').value.toUpperCase();
-            let filtered = cachedItems.filter(item => {
+            
+            let filtered = sourceData.filter(item => {
                 let matchesSearch = item.name.toUpperCase().includes(query);
+                if (currentCategory === 'crafting') {
+                    if (currentParentSkill === 'smithing') {
+                        if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('smithing_');
+                        return matchesSearch && (item.type === currentSubFilter);
+                    } else if (currentParentSkill === 'crafting') {
+                        if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('crafting_');
+                        return matchesSearch && (item.type === currentSubFilter);
+                    } else if (currentParentSkill === 'cooking') {
+                        return matchesSearch && (item.type === 'cooking');
+                    }
+                }
+                
                 let matchesCat = true;
                 if (currentCategory === 'alch') matchesCat = (item.alch_value > 0);
                 return matchesSearch && matchesCat;
@@ -494,7 +807,7 @@
             let iconEl = document.getElementById('modalIcon');
             iconEl.src = item.icon;
             
-            let marginVal = (currentCategory === 'alch' ? item.alch_profit : item.margin);
+            let marginVal = (currentCategory === 'crafting') ? item.profit : (currentCategory === 'alch' ? item.alch_profit : item.margin);
             let glowColor = getProfitColorHex(marginVal);
             iconEl.style.filter = `drop-shadow(0 0 10px ${glowColor}) drop-shadow(0 0 20px ${glowColor})`;
 
