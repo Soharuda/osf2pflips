@@ -504,8 +504,7 @@
 
         async function initDashboard() {
             let itemsMap = await loadMarketData();
-            let items = Object.values(itemsMap);
-            renderHomeView(items);
+            renderHomeView(Object.values(itemsMap));
         }
 
         function renderHomeView(items) {
