@@ -377,64 +377,83 @@
             return `rgb(${r}, ${g}, ${b})`;
         }
 
-        function getProfitColorHex(margin) {
-            if (margin < 0) return '#FF5252';
-            if (margin === 0) return '#FF9800';
-            return '#00E676';
-        }
+        // --- CORE FIX: Filter, Sort, and Slice Data for Pagination ---
+        function filterAndSortTable() {
+            let searchVal = document.getElementById('searchInput').value.toLowerCase();
+            let dataset = (currentCategory === 'crafting') ? recipeData : allItems;
 
-        function renderTable(data) {
-            const tbody = document.getElementById('tableBody');
+            // 1. Filter by Search Query & Sub-filters
+            let filtered = dataset.filter(item => {
+                let matchesSearch = item.name.toLowerCase().includes(searchVal);
+                if (!matchesSearch) return false;
+
+                if (currentCategory === 'crafting') {
+                    if (currentSubFilter !== 'all' && item.category !== currentSubFilter) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+
+            // 2. Sort Data
+            filtered.sort((a, b => {
+                let valA = a[sortField];
+                let valB = b[sortField];
+
+                if (typeof valA === 'string') {
+                    return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+                return sortAsc ? valA - valB : valB - valA;
+            }));
+
+            // 3. Pagination Math & Boundary Checks
+            let totalPages = Math.ceil(filtered.length / pageSize) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            document.getElementById('pageIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
+
+            // 4. Slice only currently visible items
+            let startIdx = (currentPage - 1) * pageSize;
+            let paginatedItems = filtered.slice(startIdx, startIdx + pageSize);
+
+            // 5. Render rows into tbody
+            let tbody = document.getElementById('tableBody');
             tbody.innerHTML = "";
-            data.forEach(item => {
+
+            paginatedItems.forEach(item => {
                 let tr = document.createElement('tr');
                 tr.onclick = () => openGraph(item);
-                
+
                 if (currentCategory === 'alch') {
-                    let alchClass = item.alch_profit > 0 ? "alch-highlight" : "neg-highlight";
-                    let alchSign = item.alch_profit > 0 ? "+" : "";
                     tr.innerHTML = `
-                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
-                        <td><b>${item.name}</b></td>
+                        <td><img src="${item.icon}" width="24" height="24" loading="lazy" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
+                        <td><strong>${item.name}</strong></td>
                         <td>${item.buy.toLocaleString()}</td>
-                        <td>${item.alch_value.toLocaleString()}</td>
-                        <td class="${alchClass}">${alchSign}${item.alch_profit.toLocaleString()}</td>
+                        <td class="alch-highlight">${item.alch_value.toLocaleString()}</td>
+                        <td class="${item.alch_profit >= 0 ? 'highlight' : 'neg-highlight'}">${item.alch_profit.toLocaleString()}</td>
                         <td>${item.limit.toLocaleString()}</td>
                     `;
                 } else if (currentCategory === 'crafting') {
-                    let profitClass = item.profit > 0 ? "highlight" : "neg-highlight";
-                    let profitSign = item.profit > 0 ? "+" : "";
-                    let alchClass = item.alch_profit > 0 ? "alch-highlight" : "neg-highlight";
-                    let alchSign = item.alch_profit > 0 ? "+" : "";
-                    
-                    let ingText = Array.isArray(item.ingredients) 
-                        ? item.ingredients.map(ing => `${ing.quantity}x ${ing.name}`).join(', ')
-                        : item.ingredients;
-
-                    let yieldText = item.yield > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield}x)</span>` : "";
-
                     tr.innerHTML = `
-                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
-                        <td><b>${item.name}</b>${yieldText}</td>
-                        <td><span style="color:#FF9800; font-weight:bold;">${item.level}</span></td>
-                        <td class="ing-text">${ingText}</td>
+                        <td><img src="${item.icon}" width="24" height="24" loading="lazy" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
+                        <td><strong>${item.name}</strong></td>
+                        <td>${item.level}</td>
+                        <td class="ing-text">${item.ingredients}</td>
                         <td>${item.cost.toLocaleString()}</td>
                         <td>${item.sell.toLocaleString()}</td>
-                        <td class="${profitClass}">${profitSign}${item.profit.toLocaleString()}</td>
-                        <td class="${alchClass}">${alchSign}${item.alch_profit.toLocaleString()}</td>
+                        <td class="${item.profit >= 0 ? 'highlight' : 'neg-highlight'}">${item.profit.toLocaleString()}</td>
+                        <td class="${item.alch_profit >= 0 ? 'alch-highlight' : 'neg-highlight'}">${item.alch_profit.toLocaleString()}</td>
                     `;
                 } else {
-                    let volColor = getVolumeColor(item.volume);
-                    let marginClass = item.margin > 0 ? "highlight" : "neg-highlight";
-                    let marginSign = item.margin > 0 ? "+" : "";
                     tr.innerHTML = `
-                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
-                        <td><b>${item.name}</b></td>
+                        <td><img src="${item.icon}" width="24" height="24" loading="lazy" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
+                        <td><strong>${item.name}</strong></td>
                         <td>${item.buy.toLocaleString()}</td>
                         <td>${item.sell.toLocaleString()}</td>
-                        <td class="tax-text">${item.tax > 0 ? '-' + item.tax.toLocaleString() : '0'}</td>
-                        <td class="${marginClass}">${marginSign}${item.margin.toLocaleString()}</td>
-                        <td><span style="color: ${volColor}; font-weight: bold;">${item.volume.toLocaleString()}</span></td>
+                        <td class="tax-text">${item.tax.toLocaleString()}</td>
+                        <td class="highlight">+${item.margin.toLocaleString()}</td>
+                        <td style="color: ${getVolumeColor(item.volume)};">${item.volume.toLocaleString()}</td>
                         <td>${item.limit.toLocaleString()}</td>
                     `;
                 }
@@ -442,216 +461,8 @@
             });
         }
 
-        function filterAndSortTable() {
-            const query = document.getElementById('searchInput').value.toUpperCase();
-            let sourceData = (currentCategory === 'crafting') ? recipeData : allItems;
-            
-            let filtered = sourceData.filter(item => {
-                let matchesSearch = item.name.toUpperCase().includes(query);
-                if (currentCategory === 'crafting') {
-                    if (currentParentSkill === 'smithing') {
-                        if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('smithing_');
-                        return matchesSearch && (item.type === currentSubFilter);
-                    } else if (currentParentSkill === 'crafting') {
-                        if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('crafting_');
-                        return matchesSearch && (item.type === currentSubFilter);
-                    } else if (currentParentSkill === 'cooking') {
-                        return matchesSearch && (item.type === 'cooking');
-                    }
-                }
-                
-                let matchesCat = true;
-                if (currentCategory === 'alch') matchesCat = (item.alch_value > 0);
-                return matchesSearch && matchesCat;
-            });
-
-            filtered.sort((a, b) => {
-                let valA = a[sortField] !== undefined ? a[sortField] : 0;
-                let valB = b[sortField] !== undefined ? b[sortField] : 0;
-                
-                if (typeof valA === 'string') {
-                    return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                }
-                return sortAsc ? valA - valB : valB - valA;
-            });
-
-            let totalPages = Math.ceil(filtered.length / pageSize) || 1;
-            if (currentPage > totalPages) currentPage = totalPages;
-            if (currentPage < 1) currentPage = 1;
-
-            let start = (currentPage - 1) * pageSize;
-            let paginatedData = filtered.slice(start, start + pageSize);
-
-            document.getElementById('pageIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
-            renderTable(paginatedData);
-        }
-
-        async function openGraph(item) {
-            currentItemId = item.id;
-            currentItemName = item.name;
-            
-            document.getElementById('modalTitle').innerText = item.name;
-            let iconEl = document.getElementById('modalIcon');
-            iconEl.src = item.icon;
-            
-            let marginVal = (currentCategory === 'crafting') ? item.profit : (currentCategory === 'alch' ? item.alch_profit : item.margin);
-            let glowColor = getProfitColorHex(marginVal);
-            iconEl.style.filter = `drop-shadow(0 0 10px ${glowColor}) drop-shadow(0 0 20px ${glowColor})`;
-
-            document.getElementById('modalBuy').innerText = item.buy ? item.buy.toLocaleString() : '0';
-            document.getElementById('modalSell').innerText = item.sell ? item.sell.toLocaleString() : '0';
-            document.getElementById('modalTax').innerText = item.tax ? '-' + item.tax.toLocaleString() : '0';
-            
-            let mClass = marginVal > 0 ? "highlight" : "neg-highlight";
-            let mSign = marginVal > 0 ? "+" : "";
-            document.getElementById('modalMargin').innerHTML = `<span class="${mClass}">${mSign}${marginVal.toLocaleString()} gp</span>`;
-            document.getElementById('modalLimit').innerText = item.limit ? item.limit.toLocaleString() : '100';
-
-            document.getElementById('chartModal').style.display = "block";
-
-            try {
-                let res = await fetch(`/api/history?id=${currentItemId}`);
-                itemHistories[currentItemId] = await res.json();
-                setTimeframe('48h');
-            } catch (err) {
-                console.error("Failed to fetch history:", err);
-            }
-        }
-
-        function setTimeframe(range) {
-            ['1h', '48h', '1w', '1m', '3m', '6m'].forEach(r => {
-                let btn = document.getElementById('btn-' + r);
-                if (btn) btn.classList.remove('active');
-            });
-            let targetBtn = document.getElementById('btn-' + range);
-            if (targetBtn) targetBtn.classList.add('active');
-            
-            const historyData = itemHistories[currentItemId];
-            if (!historyData || !historyData.raw_times || historyData.raw_times.length === 0) return;
-            
-            const now = historyData.raw_times[historyData.raw_times.length - 1];
-            let cutoffSeconds = now;
-
-            if (range === '1h') cutoffSeconds = now - (3600);
-            else if (range === '48h') cutoffSeconds = now - (48 * 3600);
-            else if (range === '1w') cutoffSeconds = now - (7 * 24 * 3600);
-            else if (range === '1m') cutoffSeconds = now - (30 * 24 * 3600);
-            else if (range === '3m') cutoffSeconds = now - (90 * 24 * 3600);
-            else if (range === '6m') cutoffSeconds = 0;
-
-            let collectedIndices = [];
-
-            for (let i = 0; i < historyData.raw_times.length; i++) {
-                let t = historyData.raw_times[i];
-                if (t >= cutoffSeconds) {
-                    collectedIndices.push(i);
-                }
-            }
-
-            if (collectedIndices.length > 10) {
-                let step = collectedIndices.length / 10;
-                let downsampled = [];
-                for (let j = 0; j < 10; j++) {
-                    let index = Math.floor(j * step);
-                    downsampled.push(collectedIndices[index]);
-                }
-                if (collectedIndices.length > 0 && downsampled[downsampled.length - 1] !== collectedIndices[collectedIndices.length - 1]) {
-                    downsampled[downsampled.length - 1] = collectedIndices[collectedIndices.length - 1];
-                }
-                collectedIndices = downsampled;
-            }
-
-            let filteredDates = [];
-            let filteredHighs = [];
-            let filteredLows = [];
-            let filteredVolumes = [];
-
-            for (let idx of collectedIndices) {
-                let t = historyData.raw_times[idx];
-                let dt = new Date(t * 1000);
-                filteredDates.push(dt.toISOString().replace('T', ' ').substring(0, 16));
-                filteredHighs.push(historyData.highs[idx]);
-                filteredLows.push(historyData.lows[idx]);
-                filteredVolumes.push(historyData.volumes[idx]);
-            }
-
-            renderCharts(filteredDates, filteredHighs, filteredLows, filteredVolumes);
-        }
-
-        function renderCharts(dates, highs, lows, volumes) {
-            const priceCtx = document.getElementById('priceChart').getContext('2d');
-            if (priceChartObj) priceChartObj.destroy();
-            priceChartObj = new Chart(priceCtx, {
-                type: 'line',
-                data: {
-                    labels: dates,
-                    datasets: [
-                        { label: 'Sell (High)', data: highs, borderColor: '#00E676', borderWidth: 2, pointRadius: 3, pointHoverRadius: 8, pointHitRadius: 35, tension: 0.45 },
-                        { label: 'Buy (Low)', data: lows, borderColor: '#FF5252', borderWidth: 2, pointRadius: 3, pointHoverRadius: 8, pointHitRadius: 35, tension: 0.45 }
-                    ]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    scales: {
-                        x: { ticks: { color: '#aaa', maxTicksLimit: 6 } },
-                        y: { ticks: { color: '#aaa', callback: v => v.toLocaleString() + ' gp' } }
-                    },
-                    plugins: { 
-                        legend: { labels: { color: '#fff', boxWidth: 12 } },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            callbacks: {
-                                title: context => 'Timestamp: ' + context[0].label,
-                                label: context => (context.dataset.label || '') + ': ' + (context.parsed.y !== null ? context.parsed.y.toLocaleString() + ' gp' : '0 gp'),
-                                afterBody: context => 'Volume: ' + (volumes[context[0].dataIndex] !== undefined ? volumes[context[0].dataIndex].toLocaleString() : '0')
-                            }
-                        }
-                    }
-                }
-            });
-
-            const volCtx = document.getElementById('volumeChart').getContext('2d');
-            if (volumeChartObj) volumeChartObj.destroy();
-            volumeChartObj = new Chart(volCtx, {
-                type: 'bar',
-                data: {
-                    labels: dates,
-                    datasets: [{ label: 'Volume', data: volumes, backgroundColor: 'rgba(33, 150, 243, 0.6)', borderColor: '#2196F3', borderWidth: 1, pointHitRadius: 35 }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    scales: {
-                        x: { ticks: { color: '#aaa', maxTicksLimit: 6 } },
-                        y: { ticks: { color: '#aaa', callback: v => v.toLocaleString() } }
-                    },
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            callbacks: {
-                                title: context => 'Timestamp: ' + context[0].label,
-                                label: context => 'Volume: ' + (context.parsed.y !== null ? context.parsed.y.toLocaleString() : '0')
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function closeGraph() {
-            document.getElementById('chartModal').style.display = "none";
-        }
-
-        window.onclick = function(event) {
-            let modal = document.getElementById('chartModal');
-            if (event.target == modal) modal.style.display = "none";
-        }
-
-        initDashboard();
+        // Initialize dashboard on load
+        window.onload = initDashboard;
     </script>
 </body>
 </html>
