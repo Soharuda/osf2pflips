@@ -108,7 +108,7 @@
     <div id="homeSectionsContainer">
         <details open>
             <summary>⚡ Top 20 Recommended Flips</summary>
-            <div id="recContainer" class="loading-overlay">Loading top recommendations from Turso...</div>
+            <div id="recContainer" class="loading-overlay">Loading market data from Turso...</div>
         </details>
         <details>
             <summary>🌙 Top 20 Recommended Overnight Flips (High Volume)</summary>
@@ -132,7 +132,7 @@
                     <tr id="tableHeaders"></tr>
                 </thead>
                 <tbody id="tableBody">
-                    <tr><td colspan="8" class="loading-overlay">Loading data from Turso cloud...</td></tr>
+                    <tr><td colspan="8" class="loading-overlay">Loading data...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -505,6 +505,8 @@
         async function initDashboard() {
             let itemsMap = await loadMarketData();
             renderHomeView(Object.values(itemsMap));
+            // Precompute recipes in background
+            getCalculatedRecipes();
         }
 
         function renderHomeView(items) {
@@ -609,8 +611,8 @@
                     `;
                 } else if (cat === 'crafting') {
                     parentSubTabs.style.display = "flex";
-                    if (currentParentSkill === 'smithing') smithingSubTabs.style.display = "flex";
-                    if (currentParentSkill === 'crafting') craftingSubTabs.style.display = "flex";
+                    if (currentParentSkill === 'smithing') smithingTabs.style.display = "flex";
+                    if (currentParentSkill === 'crafting') craftingTabs.style.display = "flex";
 
                     sortField = "level";
                     sortAsc = false;
@@ -641,9 +643,7 @@
                 }
                 
                 document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="loading-overlay">Loading data...</td></tr>`;
-                if (cat === 'crafting') await getCalculatedRecipes();
-                else await loadMarketData();
-                filterAndSortTable();
+                await filterAndSortTable();
             }
         }
 
