@@ -132,7 +132,7 @@
                     <tr id="tableHeaders"></tr>
                 </thead>
                 <tbody id="tableBody">
-                    <tr><td colspan="8" class="loading-overlay">Loading category data...</td></tr>
+                    <tr><td colspan="8" class="loading-overlay">Loading data from Turso...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -183,13 +183,12 @@
     </div>
 
     <script>
-        let cachedData = {
-            home: null,
-            flips: null,
-            alch: null,
-            crafting: null
-        };
+        const TURSO_URL = "https://osrsflips-soharuda.aws-us-east-2.turso.io/v2/pipeline";
+        const TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicm8iLCJnaWQiOiJjZjYxMWNiOC1iZGQ3LTQ3ZTUtOTgzMy0wOTczNmMxNzZlYWMiLCJpYXQiOjE3ODg2NDk2OTcsImtpZCI6InVjeGlNN2w2emt3bnFqaGZJM3dxbDZQZHZnU2Zub29IVWFZWVZPelA4cmsiLCJyaWQiOiI3YmEyMGE1Yy0yNmQ5LTRhNjQtYTY3ZC03NGEyMWMyNzYwMGUifQ.NZ5KHbj3iNJhJ7mVHa1lkCglb9EJV7K1BrBpZYcEYtpnG0z137jQw1EwJcvX1BL2lkNYWz2AjBKHr4P80zdfDQ";
+
+        let cachedItems = null;
         let itemHistories = {};
+        let wikiMapping = {};
 
         let priceChartObj = null;
         let volumeChartObj = null;
@@ -203,35 +202,102 @@
         let currentPage = 1;
         const pageSize = 25;
 
-        async function initDashboard() {
-            await loadCategoryData('home');
+        async function queryTurso(sql) {
+            let response = await fetch(TURSO_URL, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${TURSO_TOKEN}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    requests: [
+                        { type: "execute", stmt: { sql: sql } },
+                        { type: "close" }
+                    ]
+                })
+            });
+            let result = await response.json();
+            return result.results[0].response.result.rows;
         }
 
-        async function loadCategoryData(cat) {
-            if (cachedData[cat]) {
-                renderCategoryView(cat, cachedData[cat]);
-                return;
-            }
-
+        async function fetchWikiMapping() {
+            if (Object.keys(wikiMapping).length > 0) return wikiMapping;
             try {
-                let res = await fetch(`/api/data?cat=${cat}`);
+                let res = await fetch("https://prices.runescape.wiki/api/v1/osrs/mapping");
                 let data = await res.json();
-                cachedData[cat] = data;
-                renderCategoryView(cat, data);
-            } catch (err) {
-                console.error("Failed to load category data:", err);
+                data.forEach(item => {
+                    wikiMapping[item.id] = item;
+                });
+            } catch (e) {
+                console.error("Failed to load wiki mapping", e);
             }
+            return wikiMapping;
         }
 
-        function renderCategoryView(cat, data) {
-            if (cat === 'home') {
-                populateCards('recContainer', data.recommendations || []);
-                populateCards('overnightContainer', data.overnight || []);
-            } else if (cat === 'flips' || cat === 'alch') {
-                filterAndSortTable();
-            } else if (cat === 'crafting') {
-                filterAndSortTable();
-            }
+        async function loadAllItemsData() {
+            if (cachedItems) return cachedItems;
+
+            let mapping = await fetchWikiMapping();
+            
+            // Query latest prices and 24h volumes from Turso
+            let rows = await queryTurso(`
+                SELECT i.id, i.name, i.buy_limit, 
+                       p.high_price, p.low_price, 
+                       v.high_volume, v.low_volume
+                FROM f2p_items i
+                LEFT JOIN price_history p ON i.id = p.item_id AND p.timestamp = (SELECT MAX(timestamp) FROM price_history WHERE item_id = i.id)
+                LEFT JOIN price_history v ON i.id = v.item_id AND v.timestep = '24h' AND v.timestamp = (SELECT MAX(timestamp) FROM price_history WHERE item_id = i.id AND timestep = '24h')
+            `);
+
+            let items = [];
+            rows.forEach(r => {
+                let id = parseInt(r[0].value);
+                let name = r[1].value;
+                let limit = parseInt(r[2].value || 0);
+                let sell = parseInt(r[3]?.value || 0);
+                let buy = parseInt(r[4]?.value || 0);
+                let highVol = parseInt(r[5]?.value || 0);
+                let lowVol = parseInt(r[6]?.value || 0);
+                let volume = highVol + lowVol;
+
+                let meta = mapping[id] || {};
+                let icon = meta.icon ? (meta.icon.startsWith("http") ? meta.icon : "https://oldschool.runescape.wiki/images/" + meta.icon.replace(/ /g, "_")) : "https://oldschool.runescape.wiki/images/Placeholder.png";
+                let alchVal = parseInt(meta.highalch || 0);
+                let tax = sell > 0 ? Math.min(Math.floor(sell * 0.01), 5000000) : 0;
+                let margin = (buy > 0 && sell > 0) ? sell - buy - tax : 0;
+                let alchProfit = (alchVal > 0 && buy > 0) ? alchVal - buy - 561 : 0; // 561 = Nature rune ID cost approx or static
+
+                items.push({
+                    id: id,
+                    name: name,
+                    icon: icon,
+                    buy: buy,
+                    sell: sell,
+                    tax: tax,
+                    margin: margin,
+                    volume: volume,
+                    limit: limit,
+                    alch_value: alchVal,
+                    alch_profit: alchProfit
+                });
+            });
+
+            cachedItems = items;
+            return items;
+        }
+
+        async function initDashboard() {
+            let items = await loadAllItemsData();
+            renderHomeView(items);
+        }
+
+        function renderHomeView(items) {
+            let usable = items.filter(x => x.buy > 0 && x.sell > 0);
+            let general = [...usable].sort((a, b) => (b.margin * b.volume) - (a.margin * a.volume)).slice(0, 20);
+            let overnight = [...usable].sort((a, b) => b.volume - a.volume).slice(0, 20);
+
+            populateCards('recContainer', general);
+            populateCards('overnightContainer', overnight);
         }
 
         function populateCards(containerId, data) {
@@ -257,38 +323,6 @@
             });
         }
 
-        function setParentSkill(skill, btn) {
-            currentParentSkill = skill;
-            document.querySelectorAll('.parent-sub-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            currentSubFilter = "all";
-            currentPage = 1;
-            const smithingTabs = document.getElementById('smithingSubTabs');
-            const craftingTabs = document.getElementById('craftingSubTabs');
-
-            smithingTabs.style.display = "none";
-            craftingTabs.style.display = "none";
-
-            if (skill === 'smithing') {
-                smithingTabs.style.display = "flex";
-                smithingTabs.querySelector('.child-sub-btn').classList.add('active');
-            } else if (skill === 'crafting') {
-                craftingTabs.style.display = "flex";
-                craftingTabs.querySelector('.child-sub-btn').classList.add('active');
-            }
-            filterAndSortTable();
-        }
-
-        function setSubFilter(filter, btn) {
-            currentSubFilter = filter;
-            currentPage = 1;
-            let parentContainer = btn.parentElement;
-            parentContainer.querySelectorAll('.child-sub-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            filterAndSortTable();
-        }
-
         async function setCategory(cat, btn) {
             currentCategory = cat;
             currentPage = 1;
@@ -297,18 +331,12 @@
             
             const homeSections = document.getElementById('homeSectionsContainer');
             const tableWrapper = document.getElementById('searchAndTableWrapper');
-            const parentSubTabs = document.getElementById('parentSubTabs');
-            const smithingTabs = document.getElementById('smithingSubTabs');
-            const craftingTabs = document.getElementById('craftingSubTabs');
-
-            parentSubTabs.style.display = "none";
-            smithingTabs.style.display = "none";
-            craftingTabs.style.display = "none";
 
             if (cat === 'home') {
                 homeSections.style.display = "block";
                 tableWrapper.style.display = "none";
-                await loadCategoryData('home');
+                let items = await loadAllItemsData();
+                renderHomeView(items);
             } else {
                 homeSections.style.display = "none";
                 tableWrapper.style.display = "block";
@@ -323,24 +351,6 @@
                         <th onclick="toggleSort('alch_value')">Alch Value ↕</th>
                         <th onclick="toggleSort('alch_profit')">Profit/Cast ↕</th>
                         <th onclick="toggleSort('limit')">Limit ↕</th>
-                    `;
-                } else if (cat === 'crafting') {
-                    parentSubTabs.style.display = "flex";
-                    if (currentParentSkill === 'smithing') smithingSubTabs.style.display = "flex";
-                    if (currentParentSkill === 'crafting') craftingSubTabs.style.display = "flex";
-
-                    sortField = "level";
-                    sortAsc = false;
-
-                    document.getElementById('tableHeaders').innerHTML = `
-                        <th>Icon</th>
-                        <th onclick="toggleSort('name')">Product ↕</th>
-                        <th onclick="toggleSort('level')">Lvl ↕</th>
-                        <th>Ingredients Required</th>
-                        <th onclick="toggleSort('cost')">Craft Cost ↕</th>
-                        <th onclick="toggleSort('sell')">Sell Price ↕</th>
-                        <th onclick="toggleSort('profit')">GE Profit ↕</th>
-                        <th onclick="toggleSort('alch_profit')">Alch Profit ↕</th>
                     `;
                 } else {
                     sortField = "volume";
@@ -358,7 +368,8 @@
                 }
                 
                 document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="loading-overlay">Loading data...</td></tr>`;
-                await loadCategoryData(cat);
+                await loadAllItemsData();
+                filterAndSortTable();
             }
         }
 
@@ -427,28 +438,6 @@
                         <td class="${alchClass}">${alchSign}${item.alch_profit.toLocaleString()}</td>
                         <td>${item.limit.toLocaleString()}</td>
                     `;
-                } else if (currentCategory === 'crafting') {
-                    let profitClass = item.profit > 0 ? "highlight" : "neg-highlight";
-                    let profitSign = item.profit > 0 ? "+" : "";
-                    let alchClass = item.alch_profit > 0 ? "alch-highlight" : "neg-highlight";
-                    let alchSign = item.alch_profit > 0 ? "+" : "";
-                    
-                    let ingText = Array.isArray(item.ingredients) 
-                        ? item.ingredients.map(ing => `${ing.quantity}x ${ing.name}`).join(', ')
-                        : item.ingredients;
-
-                    let yieldText = item.yield > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield}x)</span>` : "";
-
-                    tr.innerHTML = `
-                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
-                        <td><b>${item.name}</b>${yieldText}</td>
-                        <td><span style="color:#FF9800; font-weight:bold;">${item.level}</span></td>
-                        <td class="ing-text">${ingText}</td>
-                        <td>${item.cost.toLocaleString()}</td>
-                        <td>${item.sell.toLocaleString()}</td>
-                        <td class="${profitClass}">${profitSign}${item.profit.toLocaleString()}</td>
-                        <td class="${alchClass}">${alchSign}${item.alch_profit.toLocaleString()}</td>
-                    `;
                 } else {
                     let volColor = getVolumeColor(item.volume);
                     let marginClass = item.margin > 0 ? "highlight" : "neg-highlight";
@@ -469,26 +458,11 @@
         }
 
         function filterAndSortTable() {
-            let catData = cachedData[currentCategory];
-            if (!catData) return;
+            if (!cachedItems) return;
 
-            let sourceData = (currentCategory === 'crafting') ? (catData.recipes || []) : (catData.items || []);
             const query = document.getElementById('searchInput').value.toUpperCase();
-            
-            let filtered = sourceData.filter(item => {
+            let filtered = cachedItems.filter(item => {
                 let matchesSearch = item.name.toUpperCase().includes(query);
-                if (currentCategory === 'crafting') {
-                    if (currentParentSkill === 'smithing') {
-                        if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('smithing_');
-                        return matchesSearch && (item.type === currentSubFilter);
-                    } else if (currentParentSkill === 'crafting') {
-                        if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('crafting_');
-                        return matchesSearch && (item.type === currentSubFilter);
-                    } else if (currentParentSkill === 'cooking') {
-                        return matchesSearch && (item.type === 'cooking');
-                    }
-                }
-                
                 let matchesCat = true;
                 if (currentCategory === 'alch') matchesCat = (item.alch_value > 0);
                 return matchesSearch && matchesCat;
@@ -520,7 +494,7 @@
             let iconEl = document.getElementById('modalIcon');
             iconEl.src = item.icon;
             
-            let marginVal = (currentCategory === 'crafting') ? item.profit : (currentCategory === 'alch' ? item.alch_profit : item.margin);
+            let marginVal = (currentCategory === 'alch' ? item.alch_profit : item.margin);
             let glowColor = getProfitColorHex(marginVal);
             iconEl.style.filter = `drop-shadow(0 0 10px ${glowColor}) drop-shadow(0 0 20px ${glowColor})`;
 
@@ -535,13 +509,22 @@
 
             document.getElementById('chartModal').style.display = "block";
 
-            try {
-                let res = await fetch(`/api/history?id=${currentItemId}`);
-                itemHistories[currentItemId] = await res.json();
-                setTimeframe('48h');
-            } catch (err) {
-                console.error("Failed to fetch history:", err);
+            if (!itemHistories[currentItemId]) {
+                try {
+                    let historyRows = await queryTurso(`SELECT timestamp, timestep, high_price, low_price, high_volume, low_volume FROM price_history WHERE item_id = ${currentItemId} ORDER BY timestamp ASC`);
+                    let times = [], highs = [], lows = [], volumes = [];
+                    historyRows.forEach(r => {
+                        times.push(parseInt(r[0].value));
+                        highs.push(parseInt(r[2].value || 0));
+                        lows.push(parseInt(r[3].value || 0));
+                        volumes.push(parseInt(r[4].value || 0) + parseInt(r[5].value || 0));
+                    });
+                    itemHistories[currentItemId] = { raw_times: times, highs: highs, lows: lows, volumes: volumes };
+                } catch (err) {
+                    console.error("Failed to fetch history from Turso:", err);
+                }
             }
+            setTimeframe('48h');
         }
 
         function setTimeframe(range) {
