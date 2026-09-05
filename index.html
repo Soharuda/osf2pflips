@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="icon" type="image/png" href="/icon.png">
-<link rel="apple-touch-icon" href="/icon.png">
+    <link rel="icon" type="image/png" href="/icon.png">
+    <link rel="apple-touch-icon" href="/icon.png">
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -30,11 +30,11 @@
         .card img { width: 30px; height: 30px; object-fit: contain; margin-right: 10px; }
         .card-info { flex-grow: 1; font-size: 0.8rem; }
         .card-title { font-weight: bold; color: #fff; }
-        .controls { display: flex; gap: 8px; margin-bottom: 10px; }
+        .controls { display: flex; gap: 8px; margin-bottom: 8px; }
         input { width: 100%; padding: 9px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; font-size: 0.85rem; box-sizing: border-box; }
         
         .table-container { 
-            max-height: calc(100vh - 210px); 
+            max-height: calc(100vh - 250px); 
             overflow-y: auto; 
             border: 1px solid #333; 
             border-radius: 6px; 
@@ -120,6 +120,11 @@
         <div class="controls">
             <input type="text" id="searchInput" onkeyup="filterAndSortTable()" placeholder="Search item...">
         </div>
+        <div id="paginationControls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem;">
+            <button onclick="changePage(-1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Previous</button>
+            <span id="pageIndicator" style="color:#aaa; font-weight:bold;">Page 1 of 1</span>
+            <button onclick="changePage(1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Next</button>
+        </div>
 
         <div class="table-container">
             <table id="itemTable">
@@ -192,6 +197,9 @@
         let sortField = "volume";
         let sortAsc = false;
 
+        let currentPage = 1;
+        const pageSize = 25;
+
         async function initDashboard() {
             try {
                 let response = await fetch('/api/data');
@@ -233,6 +241,7 @@
             btn.classList.add('active');
 
             currentSubFilter = "all";
+            currentPage = 1;
             const smithingTabs = document.getElementById('smithingSubTabs');
             const craftingTabs = document.getElementById('craftingSubTabs');
 
@@ -251,6 +260,7 @@
 
         function setSubFilter(filter, btn) {
             currentSubFilter = filter;
+            currentPage = 1;
             let parentContainer = btn.parentElement;
             parentContainer.querySelectorAll('.child-sub-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
@@ -259,6 +269,7 @@
 
         function setCategory(cat, btn) {
             currentCategory = cat;
+            currentPage = 1;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             
@@ -335,7 +346,14 @@
                 sortField = field;
                 sortAsc = (field === 'name');
             }
+            currentPage = 1;
             filterAndSortTable();
+        }
+
+        function changePage(direction) {
+            currentPage += direction;
+            filterAndSortTable();
+            document.querySelector('.table-container').scrollTop = 0;
         }
 
         function getVolumeColor(vol) {
@@ -457,7 +475,15 @@
                 return sortAsc ? valA - valB : valB - valA;
             });
 
-            renderTable(filtered);
+            let totalPages = Math.ceil(filtered.length / pageSize) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            let start = (currentPage - 1) * pageSize;
+            let paginatedData = filtered.slice(start, start + pageSize);
+
+            document.getElementById('pageIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
+            renderTable(paginatedData);
         }
 
         async function openGraph(item) {
@@ -522,7 +548,6 @@
                 }
             }
 
-            // Downsample to approx 10 points for ALL timeframes
             if (collectedIndices.length > 10) {
                 let step = collectedIndices.length / 10;
                 let downsampled = [];
