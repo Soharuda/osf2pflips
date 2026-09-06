@@ -108,11 +108,11 @@
 
     <div id="homeSectionsContainer">
         <details open>
-            <summary>⚡ Top 20 Recommended Flips</summary>
+            <summary>⚡ Top 20 Recommended Flips (Active)</summary>
             <div id="recContainer" class="loading-overlay">Loading market data from Turso...</div>
         </details>
         <details>
-            <summary>🌙 Top 20 Recommended Overnight Flips (High Volume)</summary>
+            <summary>🌙 Top 20 Overnight Flips (Passive)</summary>
             <div id="overnightContainer" class="loading-overlay">Loading overnight recommendations...</div>
         </details>
     </div>
@@ -187,7 +187,6 @@
         const TURSO_URL = "https://osrsflips-soharuda.aws-us-east-2.turso.io/v2/pipeline";
         const TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicm8iLCJnaWQiOiJjZjYxMWNiOC1iZGQ3LTQ3ZTUtOTgzMy0wOTczNmMxNzZlYWMiLCJpYXQiOjE3ODg2NDk2OTcsImtpZCI6InVjeGlNN2w2emt3bnFqaGZJM3dxbDZQZHZnU2Zub29IVWFZWVZPelA4cmsiLCJyaWQiOiI3YmEyMGE1Yy0yNmQ5LTRhNjQtYTY3ZC03NGEyMWMyNzYwMGUifQ.NZ5KHbj3iNJhJ7mVHa1lkCglb9EJV7K1BrBpZYcEYtpnG0z137jQw1EwJcvX1BL2lkNYWz2AjBKHr4P80zdfDQ";
 
-        // Replaced "yield" with "yield_amount" to satisfy strict JavaScript linters
         const F2P_RECIPES = [
             {"id": 2349, "name": "Bronze bar", "type": "smithing_bronze", "level": 1, "ing": [[436, "Copper ore", 1], [438, "Tin ore", 1]]},
             {"id": 1205, "name": "Bronze dagger", "type": "smithing_bronze", "level": 1, "ing": [[2349, "Bronze bar", 1]]},
@@ -542,15 +541,39 @@
         }
 
         function renderHomeView(items) {
-            let usable = items.filter(x => x.buy > 0 && x.sell > 0);
-            let general = [...usable].sort((a, b) => (b.margin * b.volume) - (a.margin * a.volume)).slice(0, 20);
-            let overnight = [...usable].sort((a, b) => b.volume - a.volume).slice(0, 20);
+            // Filter out junk: Must have active trading, positive margin, and reasonable volume
+            let usable = items.filter(x => x.buy > 0 && x.sell > 0 && x.margin > 0 && x.volume > 100);
 
-            populateCards('recContainer', general);
-            populateCards('overnightContainer', overnight);
+            // General Flips (Active Trading - 4 Hour Window)
+            // Profit Potential = Margin * minimum of (Buy Limit OR 1/6th of daily volume)
+            let general = [...usable].sort((a, b) => {
+                let capA = a.limit > 0 ? Math.min(a.limit, a.volume / 6) : (a.volume / 6);
+                let capB = b.limit > 0 ? Math.min(b.limit, b.volume / 6) : (b.volume / 6);
+                return (b.margin * capB) - (a.margin * capA);
+            }).slice(0, 20);
+
+            // Overnight Flips (Passive Trading - 8 Hour Window)
+            // Focus on items with > 10gp margins. 
+            // Profit Potential = Margin * minimum of (Buy Limit * 2 OR 1/3rd of daily volume)
+            let overnight = [...usable].filter(x => x.margin >= 10).sort((a, b) => {
+                let capA = a.limit > 0 ? Math.min(a.limit * 2, a.volume / 3) : (a.volume / 3);
+                let capB = b.limit > 0 ? Math.min(b.limit * 2, b.volume / 3) : (b.volume / 3);
+                return (b.margin * capB) - (a.margin * capA);
+            });
+
+            // Fallback if there aren't 20 high-margin items trading today
+            if (overnight.length < 20) {
+                overnight = [...usable].sort((a, b) => b.margin - a.margin).slice(0, 20);
+            } else {
+                overnight = overnight.slice(0, 20);
+            }
+
+            // Pass 'false' for general, 'true' for overnight to format the cards accurately
+            populateCards('recContainer', general, false);
+            populateCards('overnightContainer', overnight, true);
         }
 
-        function populateCards(containerId, data) {
+        function populateCards(containerId, data, isOvernight) {
             const container = document.getElementById(containerId);
             if (!data || data.length === 0) {
                 container.innerHTML = `<div class="loading-overlay">No data available</div>`;
@@ -561,12 +584,24 @@
                 let div = document.createElement('div');
                 div.className = "card";
                 div.onclick = () => openGraph(item);
+                
+                // Calculate the realistic profit ceiling based on time window and limits
+                let cap = item.limit > 0 
+                    ? Math.min(item.limit * (isOvernight ? 2 : 1), item.volume / (isOvernight ? 3 : 6)) 
+                    : (item.volume / (isOvernight ? 3 : 6));
+                
+                let potProfit = Math.floor(item.margin * cap);
+                let timeLabel = isOvernight ? "Est 8h Profit" : "Est 4h Profit";
+
                 div.innerHTML = `
                     <img src="${item.icon}" loading="lazy" alt="Item Icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'">
                     <div class="card-info">
                         <div class="card-title">${idx + 1}. ${item.name}</div>
                         <div>Buy: ${item.buy.toLocaleString()} | Sell: ${item.sell.toLocaleString()} | Limit: ${item.limit.toLocaleString()}</div>
-                        <div>Profit: <span class="highlight">+${item.margin.toLocaleString()} gp</span> | Daily Vol: ${item.volume.toLocaleString()}</div>
+                        <div>Margin: <span class="highlight">+${item.margin.toLocaleString()} gp</span> | Vol: ${item.volume.toLocaleString()}</div>
+                        <div style="color:#aaa; font-size:0.75rem; margin-top:4px;">
+                            ${timeLabel}: <span style="color:#FF9800; font-weight:bold;">~${potProfit.toLocaleString()} gp</span>
+                        </div>
                     </div>
                 `;
                 container.appendChild(div);
