@@ -92,18 +92,18 @@
 
     <div class="child-sub-tabs" id="smithingSubTabs">
         <button class="child-sub-btn active" onclick="setSubFilter('all', this)">All Metals</button>
-        <button class="child-sub-btn" onclick="setSubFilter('smithing_bronze', this)"><img src="https://oldschool.runescape.wiki/images/Bronze_bar.png"> Bronze</button>
-        <button class="child-sub-btn" onclick="setSubFilter('smithing_iron', this)"><img src="https://oldschool.runescape.wiki/images/Iron_bar.png"> Iron</button>
-        <button class="child-sub-btn" onclick="setSubFilter('smithing_steel', this)"><img src="https://oldschool.runescape.wiki/images/Steel_bar.png"> Steel</button>
-        <button class="child-sub-btn" onclick="setSubFilter('smithing_mithril', this)"><img src="https://oldschool.runescape.wiki/images/Mithril_bar.png"> Mithril</button>
-        <button class="child-sub-btn" onclick="setSubFilter('smithing_adamant', this)"><img src="https://oldschool.runescape.wiki/images/Adamantite_bar.png"> Adamant</button>
-        <button class="child-sub-btn" onclick="setSubFilter('smithing_runite', this)"><img src="https://oldschool.runescape.wiki/images/Runite_bar.png"> Runite</button>
+        <button class="child-sub-btn" onclick="setSubFilter('smithing_bronze', this)"><img src="https://oldschool.runescape.wiki/images/Bronze_bar.png" alt="Bronze"> Bronze</button>
+        <button class="child-sub-btn" onclick="setSubFilter('smithing_iron', this)"><img src="https://oldschool.runescape.wiki/images/Iron_bar.png" alt="Iron"> Iron</button>
+        <button class="child-sub-btn" onclick="setSubFilter('smithing_steel', this)"><img src="https://oldschool.runescape.wiki/images/Steel_bar.png" alt="Steel"> Steel</button>
+        <button class="child-sub-btn" onclick="setSubFilter('smithing_mithril', this)"><img src="https://oldschool.runescape.wiki/images/Mithril_bar.png" alt="Mithril"> Mithril</button>
+        <button class="child-sub-btn" onclick="setSubFilter('smithing_adamant', this)"><img src="https://oldschool.runescape.wiki/images/Adamantite_bar.png" alt="Adamant"> Adamant</button>
+        <button class="child-sub-btn" onclick="setSubFilter('smithing_runite', this)"><img src="https://oldschool.runescape.wiki/images/Runite_bar.png" alt="Runite"> Runite</button>
     </div>
 
     <div class="child-sub-tabs" id="craftingSubTabs">
         <button class="child-sub-btn active" onclick="setSubFilter('all', this)">All Crafting</button>
-        <button class="child-sub-btn" onclick="setSubFilter('crafting_jewelry', this)"><img src="https://oldschool.runescape.wiki/images/Gold_ring.png"> Jewelry & Gems</button>
-        <button class="child-sub-btn" onclick="setSubFilter('crafting_leather', this)"><img src="https://oldschool.runescape.wiki/images/Leather_body.png"> Leather</button>
+        <button class="child-sub-btn" onclick="setSubFilter('crafting_jewelry', this)"><img src="https://oldschool.runescape.wiki/images/Gold_ring.png" alt="Jewelry"> Jewelry & Gems</button>
+        <button class="child-sub-btn" onclick="setSubFilter('crafting_leather', this)"><img src="https://oldschool.runescape.wiki/images/Leather_body.png" alt="Leather"> Leather</button>
     </div>
 
     <div id="homeSectionsContainer">
@@ -144,7 +144,7 @@
             <span class="close" onclick="closeGraph()">&times;</span>
             <div class="modal-header">
                 <h3 id="modalTitle"></h3>
-                <img id="modalIcon" src="" alt="" onerror="this.onerror=null; this.src='https://oldschool.runescape.wiki/images/Placeholder.png';">
+                <img id="modalIcon" src="" alt="Item Icon" onerror="this.onerror=null; this.src='https://oldschool.runescape.wiki/images/Placeholder.png';">
             </div>
 
             <table class="modal-stats-table">
@@ -187,6 +187,7 @@
         const TURSO_URL = "https://osrsflips-soharuda.aws-us-east-2.turso.io/v2/pipeline";
         const TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicm8iLCJnaWQiOiJjZjYxMWNiOC1iZGQ3LTQ3ZTUtOTgzMy0wOTczNmMxNzZlYWMiLCJpYXQiOjE3ODg2NDk2OTcsImtpZCI6InVjeGlNN2w2emt3bnFqaGZJM3dxbDZQZHZnU2Zub29IVWFZWVZPelA4cmsiLCJyaWQiOiI3YmEyMGE1Yy0yNmQ5LTRhNjQtYTY3ZC03NGEyMWMyNzYwMGUifQ.NZ5KHbj3iNJhJ7mVHa1lkCglb9EJV7K1BrBpZYcEYtpnG0z137jQw1EwJcvX1BL2lkNYWz2AjBKHr4P80zdfDQ";
 
+        // Replaced "yield" with "yield_amount" to satisfy strict JavaScript linters
         const F2P_RECIPES = [
             {"id": 2349, "name": "Bronze bar", "type": "smithing_bronze", "level": 1, "ing": [[436, "Copper ore", 1], [438, "Tin ore", 1]]},
             {"id": 1205, "name": "Bronze dagger", "type": "smithing_bronze", "level": 1, "ing": [[2349, "Bronze bar", 1]]},
@@ -224,7 +225,7 @@
             {"id": 1424, "name": "Steel mace", "type": "smithing_steel", "level": 32, "ing": [[2353, "Steel bar", 1]]},
             {"id": 1141, "name": "Steel med helm", "type": "smithing_steel", "level": 33, "ing": [[2353, "Steel bar", 1]]},
             {"id": 1281, "name": "Steel sword", "type": "smithing_steel", "level": 34, "ing": [[2353, "Steel bar", 1]]},
-            {"id": 1539, "name": "Steel nails", "type": "smithing_steel", "level": 34, "yield": 15, "ing": [[2353, "Steel bar", 1]]},
+            {"id": 1539, "name": "Steel nails", "type": "smithing_steel", "level": 34, "yield_amount": 15, "ing": [[2353, "Steel bar", 1]]},
             {"id": 1325, "name": "Steel scimitar", "type": "smithing_steel", "level": 35, "ing": [[2353, "Steel bar", 2]]},
             {"id": 1295, "name": "Steel longsword", "type": "smithing_steel", "level": 36, "ing": [[2353, "Steel bar", 2]]},
             {"id": 1157, "name": "Steel full helm", "type": "smithing_steel", "level": 37, "ing": [[2353, "Steel bar", 2]]},
@@ -346,6 +347,12 @@
         let currentPage = 1;
         const pageSize = 25;
 
+        // Strict parsing tool to completely eliminate NaN bugs
+        const safeInt = (val) => {
+            const parsed = parseInt(val);
+            return isNaN(parsed) ? 0 : parsed;
+        };
+
         async function queryTurso(sql) {
             try {
                 let response = await fetch(TURSO_URL, {
@@ -362,13 +369,19 @@
                     })
                 });
                 let result = await response.json();
-                if (result.results && result.results[0].response.result) {
+                
+                // Enhanced error handling to catch Turso-specific errors instead of generic JSON failure
+                if (result.results && result.results[0]?.type === "error") {
+                    throw new Error("Turso Database Error: " + result.results[0].error.message);
+                }
+                if (result.results && result.results[0]?.response?.result) {
                     return result.results[0].response.result.rows;
                 }
-                throw new Error("Turso response invalid: " + JSON.stringify(result));
+                
+                throw new Error("Turso response invalid structure: " + JSON.stringify(result));
             } catch (err) {
-                console.error("Turso Error:", err);
-                throw err;
+                console.error("Turso Fetch Error:", err);
+                throw err; // Passes it up to UI error handler
             }
         }
 
@@ -402,22 +415,25 @@
             `);
 
             let lookup = {};
+            
+            // Using safeInt prevents any NaN logic issues if Turso row contains 'null' 
             rows.forEach(r => {
-                let id = parseInt(r[0].value);
-                let name = r[1].value;
-                let limit = parseInt(r[2].value || 0);
-                let sell = parseInt(r[3]?.value || 0);
-                let buy = parseInt(r[4]?.value || 0);
-                let highVol = parseInt(r[5]?.value || 0);
-                let lowVol = parseInt(r[6]?.value || 0);
+                let id = safeInt(r[0]?.value);
+                let name = r[1]?.value || "Unknown Item";
+                let limit = safeInt(r[2]?.value);
+                let sell = safeInt(r[3]?.value);
+                let buy = safeInt(r[4]?.value);
+                let highVol = safeInt(r[5]?.value);
+                let lowVol = safeInt(r[6]?.value);
                 let volume = highVol + lowVol;
 
                 let meta = mapping[id] || {};
                 let icon = meta.icon ? (meta.icon.startsWith("http") ? meta.icon : "https://oldschool.runescape.wiki/images/" + meta.icon.replace(/ /g, "_")) : "https://oldschool.runescape.wiki/images/Placeholder.png";
-                let alchVal = parseInt(meta.highalch || 0);
+                let alchVal = safeInt(meta.highalch);
+                
                 let tax = sell > 0 ? Math.min(Math.floor(sell * 0.01), 5000000) : 0;
-                let margin = (buy > 0 && sell > 0) ? sell - buy - tax : 0;
-                let alchProfit = (alchVal > 0 && buy > 0) ? alchVal - buy - 561 : 0;
+                let margin = (buy > 0 && sell > 0) ? (sell - buy - tax) : 0;
+                let alchProfit = (alchVal > 0 && buy > 0) ? (alchVal - buy - 561) : 0;
 
                 lookup[id] = {
                     id: id,
@@ -452,7 +468,7 @@
                 let product = itemLookup[recipe.id];
                 if (!product || product.high <= 0) return;
 
-                let yieldQty = recipe.yield || 1;
+                let yieldQty = recipe.yield_amount || 1;
                 let ingredients = [];
                 let cost = 0;
                 let valid = true;
@@ -465,6 +481,7 @@
                     }
                     let lineCost = ingItem.low * qty;
                     cost += lineCost;
+                    
                     let meta = mapping[ingId] || {};
                     let ingIcon = meta.icon ? (meta.icon.startsWith("http") ? meta.icon : "https://oldschool.runescape.wiki/images/" + meta.icon.replace(/ /g, "_")) : "https://oldschool.runescape.wiki/images/Placeholder.png";
 
@@ -485,8 +502,10 @@
                 let singleTax = singleSell > 0 ? Math.min(Math.floor(singleSell * 0.01), 5000000) : 0;
                 let tax = singleTax * yieldQty;
                 let profit = sell - cost - tax;
-                let alchVal = parseInt(mapping[recipe.id]?.highalch || 0);
+                
+                let alchVal = safeInt(mapping[recipe.id]?.highalch);
                 let alchProfit = alchVal > 0 ? (alchVal * yieldQty) - cost - (naturePrice * yieldQty) : 0;
+                
                 let metaProd = mapping[recipe.id] || {};
                 let prodIcon = metaProd.icon ? (metaProd.icon.startsWith("http") ? metaProd.icon : "https://oldschool.runescape.wiki/images/" + metaProd.icon.replace(/ /g, "_")) : "https://oldschool.runescape.wiki/images/Placeholder.png";
 
@@ -495,7 +514,7 @@
                     name: recipe.name,
                     type: recipe.type,
                     level: recipe.level,
-                    yield: yieldQty,
+                    yield_amount: yieldQty,
                     icon: prodIcon,
                     ingredients: ingredients,
                     cost: cost,
@@ -517,7 +536,8 @@
                 let itemsMap = await loadMarketData();
                 renderHomeView(Object.values(itemsMap));
             } catch (err) {
-                document.getElementById('recContainer').innerHTML = `<div class="error-overlay">❌ ${err.message}</div>`;
+                document.getElementById('recContainer').innerHTML = `<div class="error-overlay">❌ Initialization Failed: ${err.message}</div>`;
+                document.getElementById('overnightContainer').innerHTML = `<div class="error-overlay">❌ Failed to load overnight data.</div>`;
             }
         }
 
@@ -542,7 +562,7 @@
                 div.className = "card";
                 div.onclick = () => openGraph(item);
                 div.innerHTML = `
-                    <img src="${item.icon}" loading="lazy" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'">
+                    <img src="${item.icon}" loading="lazy" alt="Item Icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'">
                     <div class="card-info">
                         <div class="card-title">${idx + 1}. ${item.name}</div>
                         <div>Buy: ${item.buy.toLocaleString()} | Sell: ${item.sell.toLocaleString()} | Limit: ${item.limit.toLocaleString()}</div>
@@ -659,10 +679,11 @@
                 }
                 
                 document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="loading-overlay">Loading data...</td></tr>`;
+                
                 try {
                     await filterAndSortTable();
                 } catch (err) {
-                    document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="error-overlay">❌ Error: ${err.message}</td></tr>`;
+                    document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="error-overlay">❌ Table Error: ${err.message}</td></tr>`;
                 }
             }
         }
@@ -717,6 +738,7 @@
                 tbody.innerHTML = `<tr><td colspan="8" class="loading-overlay">No matching items found</td></tr>`;
                 return;
             }
+            
             data.forEach(item => {
                 let tr = document.createElement('tr');
                 tr.onclick = () => openGraph(item);
@@ -725,7 +747,7 @@
                     let alchClass = item.alch_profit > 0 ? "alch-highlight" : "neg-highlight";
                     let alchSign = item.alch_profit > 0 ? "+" : "";
                     tr.innerHTML = `
-                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
+                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
                         <td><b>${item.name}</b></td>
                         <td>${item.buy.toLocaleString()}</td>
                         <td>${item.alch_value.toLocaleString()}</td>
@@ -739,10 +761,10 @@
                     let alchSign = item.alch_profit > 0 ? "+" : "";
                     
                     let ingText = item.ingredients.map(ing => `${ing.quantity}x ${ing.name}`).join(', ');
-                    let yieldText = item.yield > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield}x)</span>` : "";
+                    let yieldText = item.yield_amount > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield_amount}x)</span>` : "";
 
                     tr.innerHTML = `
-                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
+                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
                         <td><b>${item.name}</b>${yieldText}</td>
                         <td><span style="color:#FF9800; font-weight:bold;">${item.level}</span></td>
                         <td class="ing-text">${ingText}</td>
@@ -756,7 +778,7 @@
                     let marginClass = item.margin > 0 ? "highlight" : "neg-highlight";
                     let marginSign = item.margin > 0 ? "+" : "";
                     tr.innerHTML = `
-                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
+                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
                         <td><b>${item.name}</b></td>
                         <td>${item.buy.toLocaleString()}</td>
                         <td>${item.sell.toLocaleString()}</td>
@@ -773,6 +795,7 @@
         async function filterAndSortTable() {
             try {
                 let sourceData = [];
+                
                 if (currentCategory === 'crafting') {
                     sourceData = await getCalculatedRecipes();
                 } else {
@@ -784,6 +807,7 @@
                 
                 let filtered = sourceData.filter(item => {
                     let matchesSearch = item.name.toUpperCase().includes(query);
+                    
                     if (currentCategory === 'crafting') {
                         if (currentParentSkill === 'smithing') {
                             if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('smithing_');
@@ -819,9 +843,10 @@
 
                 document.getElementById('pageIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
                 renderTable(paginatedData);
+                
             } catch (err) {
                 console.error("filterAndSortTable error:", err);
-                document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="error-overlay">❌ Error loading table: ${err.message}</td></tr>`;
+                document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="error-overlay">❌ Execution Error: ${err.message}</td></tr>`;
             }
         }
 
@@ -850,11 +875,12 @@
                 try {
                     let historyRows = await queryTurso(`SELECT timestamp, timestep, high_price, low_price, high_volume, low_volume FROM price_history WHERE item_id = ${currentItemId} ORDER BY timestamp ASC`);
                     let times = [], highs = [], lows = [], volumes = [];
+                    
                     historyRows.forEach(r => {
-                        times.push(parseInt(r[0].value));
-                        highs.push(parseInt(r[2].value || 0));
-                        lows.push(parseInt(r[3].value || 0));
-                        volumes.push(parseInt(r[4].value || 0) + parseInt(r[5].value || 0));
+                        times.push(safeInt(r[0]?.value));
+                        highs.push(safeInt(r[2]?.value));
+                        lows.push(safeInt(r[3]?.value));
+                        volumes.push(safeInt(r[4]?.value) + safeInt(r[5]?.value));
                     });
                     itemHistories[currentItemId] = { raw_times: times, highs: highs, lows: lows, volumes: volumes };
                 } catch (err) {
@@ -989,6 +1015,7 @@
             if (event.target == modal) modal.style.display = "none";
         }
 
+        // Kick off the application
         initDashboard();
     </script>
 </body>
