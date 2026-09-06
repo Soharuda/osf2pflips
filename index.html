@@ -122,7 +122,7 @@
         <details open>
             <summary>⚡ Top 20 Recommended Flips (AI Rated)</summary>
             <div id="recContainer" class="card-grid">
-                <div class="loading-overlay">Loading market data from Turso...</div>
+                <div class="loading-overlay">Loading market data...</div>
             </div>
         </details>
         <details>
@@ -457,11 +457,11 @@
                 });
                 let result = await response.json();
                 
-                if (result.results && result.results[0]?.type === "error") throw new Error("Turso Error: " + result.results[0].error.message);
+                if (result.results && result.results[0]?.type === "error") throw new Error("Database Error: " + result.results[0].error.message);
                 if (result.results && result.results[0]?.response?.result) return result.results[0].response.result.rows;
                 throw new Error("Invalid structure: " + JSON.stringify(result));
             } catch (err) {
-                console.error("Turso Fetch Error:", err);
+                console.error("Database Fetch Error:", err);
                 throw err;
             }
         }
@@ -1034,7 +1034,7 @@
                     });
                     itemHistories[currentItemId] = { raw_times: times, highs: highs, lows: lows, volumes: volumes };
                 } catch (err) {
-                    console.error("Failed to fetch history from Turso:", err);
+                    console.error("Failed to fetch history from Database:", err);
                 }
             }
             setTimeframe('48h');
