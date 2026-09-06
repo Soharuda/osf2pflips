@@ -71,6 +71,7 @@
         .btn-group button.active { background: #4CAF50; border-color: #4CAF50; }
         .chart-container { position: relative; margin-bottom: 15px; height: 180px; width: 100%; }
         .loading-overlay { text-align: center; color: #ffa726; padding: 20px; font-size: 0.9rem; }
+        .error-overlay { text-align: center; color: #FF5252; padding: 20px; font-size: 0.85rem; word-break: break-all; }
     </style>
 </head>
 <body>
@@ -346,21 +347,29 @@
         const pageSize = 25;
 
         async function queryTurso(sql) {
-            let response = await fetch(TURSO_URL, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${TURSO_TOKEN}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    requests: [
-                        { type: "execute", stmt: { sql: sql } },
-                        { type: "close" }
-                    ]
-                })
-            });
-            let result = await response.json();
-            return result.results[0].response.result.rows;
+            try {
+                let response = await fetch(TURSO_URL, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${TURSO_TOKEN}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        requests: [
+                            { type: "execute", stmt: { sql: sql } },
+                            { type: "close" }
+                        ]
+                    })
+                });
+                let result = await response.json();
+                if (result.results && result.results[0].response.result) {
+                    return result.results[0].response.result.rows;
+                }
+                throw new Error("Turso response format invalid: " + JSON.stringify(result));
+            } catch (err) {
+                console.error("Turso Error:", err);
+                throw err;
+            }
         }
 
         async function fetchWikiMapping() {
@@ -372,7 +381,8 @@
                     wikiMapping[item.id] = item;
                 });
             } catch (e) {
-                console.error("Failed to load wiki mapping", e);
+                console.error("Wiki Mapping Error:", e);
+                throw new Error("Failed to load OSRS Wiki mapping (CORS / Network Block)");
             }
             return wikiMapping;
         }
@@ -503,10 +513,12 @@
         }
 
         async function initDashboard() {
-            let itemsMap = await loadMarketData();
-            renderHomeView(Object.values(itemsMap));
-            // Precompute recipes in background
-            getCalculatedRecipes();
+            try {
+                let itemsMap = await loadMarketData();
+                renderHomeView(Object.values(itemsMap));
+            } catch (err) {
+                document.getElementById('recContainer').innerHTML = `<div class="error-overlay">❌ Error loading dashboard: ${err.message}</div>`;
+            }
         }
 
         function renderHomeView(items) {
@@ -592,8 +604,12 @@
             if (cat === 'home') {
                 homeSections.style.display = "block";
                 tableWrapper.style.display = "none";
-                let itemsMap = await loadMarketData();
-                renderHomeView(Object.values(itemsMap));
+                try {
+                    let itemsMap = await loadMarketData();
+                    renderHomeView(Object.values(itemsMap));
+                } catch (err) {
+                    document.getElementById('recContainer').innerHTML = `<div class="error-overlay">❌ ${err.message}</div>`;
+                }
             } else {
                 homeSections.style.display = "none";
                 tableWrapper.style.display = "block";
@@ -643,7 +659,11 @@
                 }
                 
                 document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="loading-overlay">Loading data...</td></tr>`;
-                await filterAndSortTable();
+                try {
+                    await filterAndSortTable();
+                } catch (err) {
+                    document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="error-overlay">❌ Failed to load recipes: ${err.message}</td></tr>`;
+                }
             }
         }
 
