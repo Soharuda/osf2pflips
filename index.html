@@ -26,7 +26,7 @@
         details { background: #1e1e1e; border: 1px solid #333; border-radius: 8px; margin-bottom: 15px; padding: 10px; }
         summary { font-size: 1.0rem; font-weight: bold; color: #FF9800; cursor: pointer; outline: none; }
         
-        /* Grid Layout for smaller screens (Mobile 2-wide) */
+        /* Grid Layout for smaller screens & wide monitors */
         .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 8px; padding-top: 10px; }
         .card { background: #252525; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; cursor: pointer; border: 1px solid #333; transition: transform 0.1s, border-color 0.2s; }
         .card:hover { border-color: #4CAF50; transform: translateY(-2px); }
@@ -73,7 +73,6 @@
         .modal-header h3 { margin: 0; color: #4CAF50; font-size: 1.2rem; }
         .modal-header img { width: 44px; height: 44px; object-fit: contain; margin-top: 4px; }
 
-        /* Compact Tables for Modal */
         .modal-stats-table { width: 100%; border-collapse: collapse; background: #161616; border-radius: 6px; overflow: hidden; margin-bottom: 8px; font-size: 0.8rem; }
         .modal-stats-table th, .modal-stats-table td { padding: 6px 8px; border: 1px solid #333; text-align: center; }
         .modal-stats-table th { background: #222; color: #ffa726; font-size: 0.75rem; }
@@ -120,13 +119,13 @@
 
     <div id="homeSectionsContainer">
         <details open>
-            <summary>⚡ Top 20 Recommended Flips </summary>
+            <summary id="recSummary">⚡ Top Recommended Flips</summary>
             <div id="recContainer" class="card-grid">
                 <div class="loading-overlay">Loading market data...</div>
             </div>
         </details>
         <details>
-            <summary>🌙 Top 20 Overnight Flips </summary>
+            <summary id="overnightSummary">🌙 Top Overnight Flips (Passive)</summary>
             <div id="overnightContainer" class="card-grid">
                 <div class="loading-overlay">Loading overnight recommendations...</div>
             </div>
@@ -156,7 +155,7 @@
         </div>
 
         <div id="gridContainerEl" class="card-grid" style="display: none;">
-            <!-- Grid cards will be populated here when in grid mode -->
+            <!-- Grid cards populated dynamically -->
         </div>
     </div>
 
@@ -168,7 +167,6 @@
                 <img id="modalIcon" src="" alt="Item Icon" onerror="this.onerror=null; this.src='https://oldschool.runescape.wiki/images/Placeholder.png';">
             </div>
 
-            <!-- Compact Tables restored -->
             <table class="modal-stats-table">
                 <thead>
                     <tr>
@@ -194,7 +192,6 @@
                 <thead>
                     <tr>
                         <th>24h Trend</th>
-                        <th>AI Confidence</th>
                         <th>Data Rating</th>
                         <th>High Alch</th>
                     </tr>
@@ -202,7 +199,6 @@
                 <tbody>
                     <tr>
                         <td id="modalTrend">-</td>
-                        <td id="modalConfidence">-</td>
                         <td id="modalDataRating">-</td>
                         <td id="modalAlch">0</td>
                     </tr>
@@ -385,39 +381,46 @@
         let sortAsc = false;
 
         let currentPage = 1;
-        const pageSize = 25;
+        let pageSize = 25;
 
-        // Initialize preferred view mode from Local Storage
         let currentViewMode = localStorage.getItem('osrs_f2p_view') || 'grid';
+        let homeDataCache = null;
 
         const safeInt = (val) => {
             const parsed = parseInt(val);
             return isNaN(parsed) ? 0 : parsed;
         };
 
+        function getOptimalItemCount() {
+            let containerWidth = document.body.clientWidth - 40; 
+            let cols = Math.floor((containerWidth + 8) / 173);
+            cols = Math.max(2, cols); 
+            
+            let count = cols;
+            while (count < 20) {
+                count += cols;
+            }
+            return count;
+        }
+
         function calculateDataRating(item) {
             let rating = "Poor";
             let cssClass = "neg-highlight";
             
             if (item.volume > 50000 && item.margin > 0) {
-                rating = "Excellent";
-                cssClass = "highlight";
+                rating = "Excellent"; cssClass = "highlight";
             } else if (item.volume > 5000) {
-                rating = "Good";
-                cssClass = "highlight";
+                rating = "Good"; cssClass = "highlight";
             } else if (item.volume > 1000) {
-                rating = "Fair";
-                cssClass = "tax-text";
+                rating = "Fair"; cssClass = "tax-text";
             } else if (item.volume < 100) {
-                rating = "Stale";
-                cssClass = "neg-highlight";
+                rating = "Stale"; cssClass = "neg-highlight";
             }
             return { text: rating, class: cssClass };
         }
 
         function calculateAIConfidence(item) {
             let score = 50; 
-            
             if (item.volume >= 100000) score += 25;
             else if (item.volume >= 10000) score += 20;
             else if (item.volume >= 1000) score += 10;
@@ -438,13 +441,9 @@
 
             let rating = "Low";
             let badgeClass = "neg-highlight";
-            if (score >= 70) {
-                rating = "High";
-                badgeClass = "highlight";
-            } else if (score >= 45) {
-                rating = "Medium";
-                badgeClass = "tax-text";
-            }
+            if (score >= 70) { rating = "High"; badgeClass = "highlight"; } 
+            else if (score >= 45) { rating = "Medium"; badgeClass = "tax-text"; }
+
             return { score, rating, badgeClass, roiPct: roi.toFixed(2) };
         }
 
@@ -456,12 +455,11 @@
                     body: JSON.stringify({ requests: [{ type: "execute", stmt: { sql: sql } }, { type: "close" }] })
                 });
                 let result = await response.json();
-                
-                if (result.results && result.results[0]?.type === "error") throw new Error("Database Error: " + result.results[0].error.message);
+                if (result.results && result.results[0]?.type === "error") throw new Error("Turso Error: " + result.results[0].error.message);
                 if (result.results && result.results[0]?.response?.result) return result.results[0].response.result.rows;
                 throw new Error("Invalid structure: " + JSON.stringify(result));
             } catch (err) {
-                console.error("Database Fetch Error:", err);
+                console.error("Turso Fetch Error:", err);
                 throw err;
             }
         }
@@ -492,7 +490,6 @@
             `);
 
             let lookup = {};
-            
             rows.forEach(r => {
                 let id = safeInt(r[0]?.value);
                 let name = r[1]?.value || "Unknown Item";
@@ -510,7 +507,17 @@
                 let alchVal = safeInt(meta.highalch);
                 
                 let tax = sell > 0 ? Math.min(Math.floor(sell * 0.01), 5000000) : 0;
-                let margin = (buy > 0 && sell > 0) ? (sell - buy - tax) : 0;
+                let margin = 0;
+
+                if (buy > 0 && sell > 0) {
+                    if (id === 13190) { // Old School Bond ID (accounts for 10% un-binding fee + 1% tax)
+                        let unbindFee = Math.floor(sell * 0.10);
+                        margin = sell - buy - tax - unbindFee;
+                    } else {
+                        margin = sell - buy - tax;
+                    }
+                }
+
                 let alchProfit = (alchVal > 0 && buy > 0) ? (alchVal - buy - 561) : 0;
 
                 let currentMid = (sell + buy) / 2;
@@ -625,6 +632,14 @@
         }
 
         function renderHomeView(items) {
+            homeDataCache = items;
+            let limit = getOptimalItemCount();
+
+            let recSummary = document.getElementById('recSummary');
+            let overSummary = document.getElementById('overnightSummary');
+            if (recSummary) recSummary.innerText = `⚡ Top ${limit} Recommended Flips`;
+            if (overSummary) overSummary.innerText = `🌙 Top ${limit} Overnight Flips (Passive)`;
+
             let usable = items.filter(x => x.buy > 0 && x.sell > 0 && x.margin > 0 && x.volume > 100);
 
             let general = [...usable].sort((a, b) => {
@@ -633,7 +648,7 @@
                 let scoreA = (a.margin * capA) * (a.aiScore / 100);
                 let scoreB = (b.margin * capB) * (b.aiScore / 100);
                 return scoreB - scoreA;
-            }).slice(0, 20);
+            }).slice(0, limit);
 
             let overnight = [...usable].filter(x => x.margin >= 10).sort((a, b) => {
                 let capA = a.limit > 0 ? Math.min(a.limit * 2, a.volume / 3) : (a.volume / 3);
@@ -641,7 +656,7 @@
                 let scoreA = (a.margin * capA) * (a.aiScore / 100);
                 let scoreB = (b.margin * capB) * (b.aiScore / 100);
                 return scoreB - scoreA;
-            }).slice(0, 20);
+            }).slice(0, limit);
 
             populateHomeCards('recContainer', general, false);
             populateHomeCards('overnightContainer', overnight, true);
@@ -665,6 +680,8 @@
                 
                 let potProfit = Math.floor(item.margin * cap);
                 let timeLabel = isOvernight ? "Est 8h Profit" : "Est 4h Profit";
+                let marginClass = item.margin > 0 ? "highlight" : "neg-highlight";
+                let marginSign = item.margin > 0 ? "+" : "";
 
                 div.innerHTML = `
                     <div class="card-header">
@@ -678,7 +695,7 @@
                         </div>
                         <div class="card-row">
                             <span class="label">Margin:</span>
-                            <span class="highlight">+${item.margin.toLocaleString()} gp (${item.roiPct}%)</span>
+                            <span class="${marginClass}">${marginSign}${item.margin.toLocaleString()} gp (${item.roiPct}%)</span>
                         </div>
                         <div class="card-row">
                             <span class="label">Vol / Limit:</span>
@@ -857,6 +874,15 @@
                     return sortAsc ? valA - valB : valB - valA;
                 });
 
+                if (currentViewMode === 'grid') {
+                    let containerWidth = document.body.clientWidth - 40; 
+                    let cols = Math.floor((containerWidth + 8) / 173);
+                    cols = Math.max(2, cols); 
+                    pageSize = cols * 4; // Exactly 4 rows per page in grid view
+                } else {
+                    pageSize = 25;
+                }
+
                 let totalPages = Math.ceil(filtered.length / pageSize) || 1;
                 if (currentPage > totalPages) currentPage = totalPages;
                 if (currentPage < 1) currentPage = 1;
@@ -954,7 +980,7 @@
                     let profitSign = item.profit > 0 ? "+" : "";
                     let yieldText = item.yield_amount > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield_amount}x)</span>` : "";
                     let ingText = item.ingredients.map(ing => `${ing.quantity}x ${ing.name}`).join(', ');
-                    item.name = item.name + yieldText; 
+                    let displayName = item.name + yieldText;
 
                     contentHTML = `
                         <div class="card-row"><span class="label">Level Required:</span><span style="color:#FF9800; font-weight:bold;">${item.level}</span></div>
@@ -967,9 +993,11 @@
                         <div class="card-footer ${profitClass}">GE Profit: ${profitSign}${item.profit.toLocaleString()} gp</div>
                     `;
                 } else {
+                    let marginClass = item.margin > 0 ? "highlight" : "neg-highlight";
+                    let marginSign = item.margin > 0 ? "+" : "";
                     contentHTML = `
                         <div class="card-row"><span class="label">Buy / Sell:</span><span>${item.buy.toLocaleString()} / ${item.sell.toLocaleString()}</span></div>
-                        <div class="card-row"><span class="label">Margin:</span><span class="highlight">+${item.margin.toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Margin:</span><span class="${marginClass}">${marginSign}${item.margin.toLocaleString()} gp</span></div>
                         <div class="card-row"><span class="label">Vol / Limit:</span><span>${item.volume.toLocaleString()} / ${item.limit.toLocaleString()}</span></div>
                         <div class="card-badges">
                             <span class="badge ${item.trendClass}">${item.trendIcon} ${item.trend}</span>
@@ -996,7 +1024,6 @@
             let glowColor = getProfitColorHex(marginVal);
             iconEl.style.filter = `drop-shadow(0 0 10px ${glowColor}) drop-shadow(0 0 20px ${glowColor})`;
 
-            // Load primary data into compact tables
             document.getElementById('modalSell').innerText = item.sell ? item.sell.toLocaleString() : '0';
             document.getElementById('modalBuy').innerText = item.buy ? item.buy.toLocaleString() : '0';
             
@@ -1008,9 +1035,7 @@
             document.getElementById('modalVolume').innerText = item.volume ? item.volume.toLocaleString() : '0';
             document.getElementById('modalLimit').innerText = item.limit ? item.limit.toLocaleString() : '0';
             
-            // Secondary row
             document.getElementById('modalTrend').innerHTML = `<span class="${item.trendClass}">${item.trendIcon || ''} ${item.trend || 'Stable'}</span>`;
-            document.getElementById('modalConfidence').innerHTML = `<span class="${item.aiBadgeClass}">${item.aiRating || 'Medium'} (${item.aiScore || 50})</span>`;
             
             let safeDataRatingClass = item.dataRatingClass || "neg-highlight";
             let safeDataRatingText = item.dataRatingText || "Poor";
@@ -1032,7 +1057,7 @@
                     });
                     itemHistories[currentItemId] = { raw_times: times, highs: highs, lows: lows, volumes: volumes };
                 } catch (err) {
-                    console.error("Failed to fetch history from Database:", err);
+                    console.error("Failed to fetch history from Turso:", err);
                 }
             }
             setTimeframe('48h');
@@ -1156,6 +1181,18 @@
 
         function closeGraph() { document.getElementById('chartModal').style.display = "none"; }
         window.onclick = function(event) { let modal = document.getElementById('chartModal'); if (event.target == modal) modal.style.display = "none"; }
+
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (currentCategory === 'home' && homeDataCache) {
+                    renderHomeView(homeDataCache);
+                } else if (currentCategory !== 'home' && currentViewMode === 'grid') {
+                    filterAndSortData();
+                }
+            }, 250);
+        });
 
         initDashboard();
     </script>
