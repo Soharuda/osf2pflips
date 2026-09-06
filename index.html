@@ -25,12 +25,23 @@
 
         details { background: #1e1e1e; border: 1px solid #333; border-radius: 8px; margin-bottom: 15px; padding: 10px; }
         summary { font-size: 1.0rem; font-weight: bold; color: #FF9800; cursor: pointer; outline: none; }
-        .card { background: #252525; border-radius: 6px; padding: 8px; margin-top: 8px; display: flex; align-items: center; cursor: pointer; border: 1px solid #444; }
-        .card img { width: 30px; height: 30px; object-fit: contain; margin-right: 10px; }
-        .card-info { flex-grow: 1; font-size: 0.8rem; }
-        .card-title { font-weight: bold; color: #fff; }
-        .controls { display: flex; gap: 8px; margin-bottom: 8px; }
-        input { width: 100%; padding: 9px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; font-size: 0.85rem; box-sizing: border-box; }
+        
+        /* Grid Layout for smaller screens (Mobile 2-wide) */
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 8px; padding-top: 10px; }
+        .card { background: #252525; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; cursor: pointer; border: 1px solid #333; transition: transform 0.1s, border-color 0.2s; }
+        .card:hover { border-color: #4CAF50; transform: translateY(-2px); }
+        .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .card-header img { width: 32px; height: 32px; object-fit: contain; }
+        .card-title { font-weight: bold; color: #fff; font-size: 0.85rem; line-height: 1.1; }
+        .card-row { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px; }
+        .card-row .label { color: #aaa; }
+        .card-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; font-size: 0.65rem; }
+        .badge { padding: 3px 5px; border-radius: 4px; font-weight: bold; background: #181818; border: 1px solid #333; display: inline-flex; align-items: center; gap: 3px; }
+        .card-footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid #333; text-align: center; color: #FF9800; font-weight: bold; font-size: 0.75rem; }
+
+        .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; align-items: center; }
+        input { flex-grow: 1; min-width: 150px; padding: 9px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; font-size: 0.85rem; box-sizing: border-box; }
+        #viewToggleBtn { background: #2c2c2c; color: #fff; border: 1px solid #4CAF50; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
         
         .table-container { 
             max-height: calc(100vh - 250px); 
@@ -50,7 +61,7 @@
         .highlight { color: #00E676; font-weight: bold; }
         .neg-highlight { color: #FF5252; font-weight: bold; }
         .alch-highlight { color: #29b6f6; font-weight: bold; }
-        .tax-text { color: #ffab40; }
+        .tax-text { color: #ffab40; font-weight: bold; }
         .ing-text { font-size: 0.7rem; color: #aaa; }
         
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); overflow-y: auto; padding: 10px; box-sizing: border-box; }
@@ -60,18 +71,19 @@
         
         .modal-header { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; }
         .modal-header h3 { margin: 0; color: #4CAF50; font-size: 1.2rem; }
-        .modal-header img { width: 42px; height: 42px; object-fit: contain; margin-top: 4px; }
+        .modal-header img { width: 44px; height: 44px; object-fit: contain; margin-top: 4px; }
 
-        .modal-stats-table { width: 100%; border-collapse: collapse; background: #161616; border-radius: 6px; overflow: hidden; margin-bottom: 12px; font-size: 0.8rem; }
-        .modal-stats-table th, .modal-stats-table td { padding: 6px 10px; border: 1px solid #333; text-align: center; }
+        /* Compact Tables for Modal */
+        .modal-stats-table { width: 100%; border-collapse: collapse; background: #161616; border-radius: 6px; overflow: hidden; margin-bottom: 8px; font-size: 0.8rem; }
+        .modal-stats-table th, .modal-stats-table td { padding: 6px 8px; border: 1px solid #333; text-align: center; }
         .modal-stats-table th { background: #222; color: #ffa726; font-size: 0.75rem; }
 
         .btn-group { display: flex; gap: 4px; margin-bottom: 12px; justify-content: center; flex-wrap: wrap; }
         .btn-group button { background: #2c2c2c; color: #fff; border: 1px solid #444; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
         .btn-group button.active { background: #4CAF50; border-color: #4CAF50; }
         .chart-container { position: relative; margin-bottom: 15px; height: 180px; width: 100%; }
-        .loading-overlay { text-align: center; color: #ffa726; padding: 20px; font-size: 0.9rem; }
-        .error-overlay { text-align: center; color: #FF5252; padding: 20px; font-size: 0.85rem; word-break: break-all; }
+        .loading-overlay { text-align: center; color: #ffa726; padding: 20px; font-size: 0.9rem; grid-column: 1 / -1; }
+        .error-overlay { text-align: center; color: #FF5252; padding: 20px; font-size: 0.85rem; word-break: break-all; grid-column: 1 / -1; }
     </style>
 </head>
 <body>
@@ -108,18 +120,23 @@
 
     <div id="homeSectionsContainer">
         <details open>
-            <summary>⚡ Top 20 Recommended Flips (Active)</summary>
-            <div id="recContainer" class="loading-overlay">Loading market data from Turso...</div>
+            <summary>⚡ Top 20 Recommended Flips (AI Rated)</summary>
+            <div id="recContainer" class="card-grid">
+                <div class="loading-overlay">Loading market data from Turso...</div>
+            </div>
         </details>
         <details>
             <summary>🌙 Top 20 Overnight Flips (Passive)</summary>
-            <div id="overnightContainer" class="loading-overlay">Loading overnight recommendations...</div>
+            <div id="overnightContainer" class="card-grid">
+                <div class="loading-overlay">Loading overnight recommendations...</div>
+            </div>
         </details>
     </div>
 
     <div id="searchAndTableWrapper" style="display: none;">
         <div class="controls">
-            <input type="text" id="searchInput" onkeyup="filterAndSortTable()" placeholder="Search item...">
+            <input type="text" id="searchInput" onkeyup="filterAndSortData()" placeholder="Search item...">
+            <button id="viewToggleBtn" onclick="toggleViewMode()">🔲 Grid View</button>
         </div>
         <div id="paginationControls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem;">
             <button onclick="changePage(-1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Previous</button>
@@ -127,15 +144,19 @@
             <button onclick="changePage(1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Next</button>
         </div>
 
-        <div class="table-container">
+        <div class="table-container" id="tableContainerEl">
             <table id="itemTable">
                 <thead>
                     <tr id="tableHeaders"></tr>
                 </thead>
                 <tbody id="tableBody">
-                    <tr><td colspan="8" class="loading-overlay">Loading data...</td></tr>
+                    <tr><td colspan="10" class="loading-overlay">Loading data...</td></tr>
                 </tbody>
             </table>
+        </div>
+
+        <div id="gridContainerEl" class="card-grid" style="display: none;">
+            <!-- Grid cards will be populated here when in grid mode -->
         </div>
     </div>
 
@@ -147,13 +168,14 @@
                 <img id="modalIcon" src="" alt="Item Icon" onerror="this.onerror=null; this.src='https://oldschool.runescape.wiki/images/Placeholder.png';">
             </div>
 
+            <!-- Compact Tables restored -->
             <table class="modal-stats-table">
                 <thead>
                     <tr>
-                        <th>Current Buy (Low)</th>
-                        <th>Current Sell (High)</th>
-                        <th>GE Tax</th>
+                        <th>Buy (Low)</th>
+                        <th>Sell (High)</th>
                         <th>Margin / Profit</th>
+                        <th>24h Volume</th>
                         <th>Buy Limit</th>
                     </tr>
                 </thead>
@@ -161,9 +183,28 @@
                     <tr>
                         <td id="modalBuy">0</td>
                         <td id="modalSell">0</td>
-                        <td id="modalTax" class="tax-text">0</td>
                         <td id="modalMargin">0</td>
+                        <td id="modalVolume">0</td>
                         <td id="modalLimit">0</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <table class="modal-stats-table" style="margin-bottom: 14px;">
+                <thead>
+                    <tr>
+                        <th>24h Trend</th>
+                        <th>AI Confidence</th>
+                        <th>Data Rating</th>
+                        <th>High Alch</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td id="modalTrend">-</td>
+                        <td id="modalConfidence">-</td>
+                        <td id="modalDataRating">-</td>
+                        <td id="modalAlch">0</td>
                     </tr>
                 </tbody>
             </table>
@@ -346,41 +387,82 @@
         let currentPage = 1;
         const pageSize = 25;
 
-        // Strict parsing tool to completely eliminate NaN bugs
+        // Initialize preferred view mode from Local Storage
+        let currentViewMode = localStorage.getItem('osrs_f2p_view') || 'grid';
+
         const safeInt = (val) => {
             const parsed = parseInt(val);
             return isNaN(parsed) ? 0 : parsed;
         };
 
+        function calculateDataRating(item) {
+            let rating = "Poor";
+            let cssClass = "neg-highlight";
+            
+            if (item.volume > 50000 && item.margin > 0) {
+                rating = "Excellent";
+                cssClass = "highlight";
+            } else if (item.volume > 5000) {
+                rating = "Good";
+                cssClass = "highlight";
+            } else if (item.volume > 1000) {
+                rating = "Fair";
+                cssClass = "tax-text";
+            } else if (item.volume < 100) {
+                rating = "Stale";
+                cssClass = "neg-highlight";
+            }
+            return { text: rating, class: cssClass };
+        }
+
+        function calculateAIConfidence(item) {
+            let score = 50; 
+            
+            if (item.volume >= 100000) score += 25;
+            else if (item.volume >= 10000) score += 20;
+            else if (item.volume >= 1000) score += 10;
+            else if (item.volume < 200) score -= 20;
+
+            let roi = item.buy > 0 ? (item.margin / item.buy) * 100 : 0;
+            if (roi >= 1 && roi <= 12) score += 20; 
+            else if (roi > 12 && roi <= 25) score += 5;
+            else if (roi > 25) score -= 20; 
+            else if (roi < 0.2) score -= 10; 
+
+            if (item.trend === "Rising") score += 15;
+            else if (item.trend === "Stable") score += 10;
+            else if (item.trend === "Falling") score -= 15;
+
+            if (item.limit > 0 && item.volume >= item.limit) score += 10;
+            score = Math.max(5, Math.min(99, score));
+
+            let rating = "Low";
+            let badgeClass = "neg-highlight";
+            if (score >= 70) {
+                rating = "High";
+                badgeClass = "highlight";
+            } else if (score >= 45) {
+                rating = "Medium";
+                badgeClass = "tax-text";
+            }
+            return { score, rating, badgeClass, roiPct: roi.toFixed(2) };
+        }
+
         async function queryTurso(sql) {
             try {
                 let response = await fetch(TURSO_URL, {
                     method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${TURSO_TOKEN}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        requests: [
-                            { type: "execute", stmt: { sql: sql } },
-                            { type: "close" }
-                        ]
-                    })
+                    headers: { "Authorization": `Bearer ${TURSO_TOKEN}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ requests: [{ type: "execute", stmt: { sql: sql } }, { type: "close" }] })
                 });
                 let result = await response.json();
                 
-                // Enhanced error handling to catch Turso-specific errors instead of generic JSON failure
-                if (result.results && result.results[0]?.type === "error") {
-                    throw new Error("Turso Database Error: " + result.results[0].error.message);
-                }
-                if (result.results && result.results[0]?.response?.result) {
-                    return result.results[0].response.result.rows;
-                }
-                
-                throw new Error("Turso response invalid structure: " + JSON.stringify(result));
+                if (result.results && result.results[0]?.type === "error") throw new Error("Turso Error: " + result.results[0].error.message);
+                if (result.results && result.results[0]?.response?.result) return result.results[0].response.result.rows;
+                throw new Error("Invalid structure: " + JSON.stringify(result));
             } catch (err) {
                 console.error("Turso Fetch Error:", err);
-                throw err; // Passes it up to UI error handler
+                throw err;
             }
         }
 
@@ -389,25 +471,21 @@
             try {
                 let res = await fetch("https://prices.runescape.wiki/api/v1/osrs/mapping");
                 let data = await res.json();
-                data.forEach(item => {
-                    wikiMapping[item.id] = item;
-                });
+                data.forEach(item => { wikiMapping[item.id] = item; });
             } catch (e) {
-                console.error("Wiki Mapping Error:", e);
-                throw new Error("Failed to load OSRS Wiki mapping (CORS / Network Block)");
+                throw new Error("Failed to load OSRS Wiki mapping.");
             }
             return wikiMapping;
         }
 
         async function loadMarketData() {
             if (Object.keys(cachedItemsMap).length > 0) return cachedItemsMap;
-
             let mapping = await fetchWikiMapping();
-            
             let rows = await queryTurso(`
                 SELECT i.id, i.name, i.buy_limit, 
                        p.high_price, p.low_price, 
-                       v.high_volume, v.low_volume
+                       v.high_volume, v.low_volume,
+                       v.high_price AS avg_high_24h, v.low_price AS avg_low_24h
                 FROM f2p_items i
                 LEFT JOIN price_history p ON i.id = p.item_id AND p.timestamp = (SELECT MAX(timestamp) FROM price_history WHERE item_id = i.id)
                 LEFT JOIN price_history v ON i.id = v.item_id AND v.timestep = '24h' AND v.timestamp = (SELECT MAX(timestamp) FROM price_history WHERE item_id = i.id AND timestep = '24h')
@@ -415,7 +493,6 @@
 
             let lookup = {};
             
-            // Using safeInt prevents any NaN logic issues if Turso row contains 'null' 
             rows.forEach(r => {
                 let id = safeInt(r[0]?.value);
                 let name = r[1]?.value || "Unknown Item";
@@ -425,6 +502,8 @@
                 let highVol = safeInt(r[5]?.value);
                 let lowVol = safeInt(r[6]?.value);
                 let volume = highVol + lowVol;
+                let avgHigh24 = safeInt(r[7]?.value);
+                let avgLow24 = safeInt(r[8]?.value);
 
                 let meta = mapping[id] || {};
                 let icon = meta.icon ? (meta.icon.startsWith("http") ? meta.icon : "https://oldschool.runescape.wiki/images/" + meta.icon.replace(/ /g, "_")) : "https://oldschool.runescape.wiki/images/Placeholder.png";
@@ -434,21 +513,32 @@
                 let margin = (buy > 0 && sell > 0) ? (sell - buy - tax) : 0;
                 let alchProfit = (alchVal > 0 && buy > 0) ? (alchVal - buy - 561) : 0;
 
-                lookup[id] = {
-                    id: id,
-                    name: name,
-                    icon: icon,
-                    buy: buy,
-                    sell: sell,
-                    high: sell,
-                    low: buy,
-                    tax: tax,
-                    margin: margin,
-                    volume: volume,
-                    limit: limit,
-                    alch_value: alchVal,
-                    alch_profit: alchProfit
+                let currentMid = (sell + buy) / 2;
+                let pastMid = (avgHigh24 + avgLow24) / 2;
+                let trend = "Stable", trendClass = "tax-text", trendIcon = "⚖️";
+
+                if (pastMid > 0 && currentMid > 0) {
+                    let diff = ((currentMid - pastMid) / pastMid) * 100;
+                    if (diff > 0.8) { trend = "Rising"; trendClass = "highlight"; trendIcon = "📈"; } 
+                    else if (diff < -0.8) { trend = "Falling"; trendClass = "neg-highlight"; trendIcon = "📉"; }
+                }
+
+                let itemObj = {
+                    id, name, icon, buy, sell, high: sell, low: buy, tax, margin, volume, limit,
+                    alch_value: alchVal, alch_profit: alchProfit, trend, trendClass, trendIcon
                 };
+
+                let ai = calculateAIConfidence(itemObj);
+                itemObj.aiScore = ai.score;
+                itemObj.aiRating = ai.rating;
+                itemObj.aiBadgeClass = ai.badgeClass;
+                itemObj.roiPct = ai.roiPct;
+                
+                let dRate = calculateDataRating(itemObj);
+                itemObj.dataRatingText = dRate.text;
+                itemObj.dataRatingClass = dRate.class;
+
+                lookup[id] = itemObj;
             });
 
             cachedItemsMap = lookup;
@@ -474,24 +564,13 @@
 
                 recipe.ing.forEach(([ingId, ingName, qty]) => {
                     let ingItem = itemLookup[ingId];
-                    if (!ingItem || ingItem.low <= 0) {
-                        valid = false;
-                        return;
-                    }
+                    if (!ingItem || ingItem.low <= 0) { valid = false; return; }
                     let lineCost = ingItem.low * qty;
                     cost += lineCost;
                     
                     let meta = mapping[ingId] || {};
                     let ingIcon = meta.icon ? (meta.icon.startsWith("http") ? meta.icon : "https://oldschool.runescape.wiki/images/" + meta.icon.replace(/ /g, "_")) : "https://oldschool.runescape.wiki/images/Placeholder.png";
-
-                    ingredients.push({
-                        id: ingId,
-                        name: ingName,
-                        quantity: qty,
-                        price: ingItem.low,
-                        cost: lineCost,
-                        icon: ingIcon
-                    });
+                    ingredients.push({ id: ingId, name: ingName, quantity: qty, price: ingItem.low, cost: lineCost, icon: ingIcon });
                 });
 
                 if (!valid) return;
@@ -504,25 +583,17 @@
                 
                 let alchVal = safeInt(mapping[recipe.id]?.highalch);
                 let alchProfit = alchVal > 0 ? (alchVal * yieldQty) - cost - (naturePrice * yieldQty) : 0;
-                
                 let metaProd = mapping[recipe.id] || {};
                 let prodIcon = metaProd.icon ? (metaProd.icon.startsWith("http") ? metaProd.icon : "https://oldschool.runescape.wiki/images/" + metaProd.icon.replace(/ /g, "_")) : "https://oldschool.runescape.wiki/images/Placeholder.png";
 
                 output.push({
-                    id: recipe.id,
-                    name: recipe.name,
-                    type: recipe.type,
-                    level: recipe.level,
-                    yield_amount: yieldQty,
-                    icon: prodIcon,
-                    ingredients: ingredients,
-                    cost: cost,
-                    sell: sell,
-                    tax: tax,
-                    profit: profit,
-                    margin: cost > 0 ? (profit / cost) * 100 : 0,
-                    alch_value: alchVal,
-                    alch_profit: alchProfit
+                    id: recipe.id, name: recipe.name, type: recipe.type, level: recipe.level, yield_amount: yieldQty,
+                    icon: prodIcon, ingredients: ingredients, cost: cost, sell: sell, tax: tax, profit: profit,
+                    margin: cost > 0 ? (profit / cost) * 100 : 0, alch_value: alchVal, alch_profit: alchProfit,
+                    trend: product.trend || "Stable", trendClass: product.trendClass || "tax-text", trendIcon: product.trendIcon || "⚖️",
+                    aiScore: product.aiScore || 50, aiRating: product.aiRating || "Medium", aiBadgeClass: product.aiBadgeClass || "tax-text",
+                    dataRatingText: product.dataRatingText || "Poor", dataRatingClass: product.dataRatingClass || "neg-highlight",
+                    volume: product.volume || 0, limit: product.limit || 0
                 });
             });
 
@@ -531,6 +602,7 @@
         }
 
         async function initDashboard() {
+            updateViewToggleButton();
             try {
                 let itemsMap = await loadMarketData();
                 renderHomeView(Object.values(itemsMap));
@@ -540,40 +612,42 @@
             }
         }
 
+        function toggleViewMode() {
+            currentViewMode = currentViewMode === 'grid' ? 'table' : 'grid';
+            localStorage.setItem('osrs_f2p_view', currentViewMode);
+            updateViewToggleButton();
+            filterAndSortData();
+        }
+
+        function updateViewToggleButton() {
+            const btn = document.getElementById('viewToggleBtn');
+            if (btn) { btn.innerText = currentViewMode === 'grid' ? '📄 Table View' : '🔲 Grid View'; }
+        }
+
         function renderHomeView(items) {
-            // Filter out junk: Must have active trading, positive margin, and reasonable volume
             let usable = items.filter(x => x.buy > 0 && x.sell > 0 && x.margin > 0 && x.volume > 100);
 
-            // General Flips (Active Trading - 4 Hour Window)
-            // Profit Potential = Margin * minimum of (Buy Limit OR 1/6th of daily volume)
             let general = [...usable].sort((a, b) => {
                 let capA = a.limit > 0 ? Math.min(a.limit, a.volume / 6) : (a.volume / 6);
                 let capB = b.limit > 0 ? Math.min(b.limit, b.volume / 6) : (b.volume / 6);
-                return (b.margin * capB) - (a.margin * capA);
+                let scoreA = (a.margin * capA) * (a.aiScore / 100);
+                let scoreB = (b.margin * capB) * (b.aiScore / 100);
+                return scoreB - scoreA;
             }).slice(0, 20);
 
-            // Overnight Flips (Passive Trading - 8 Hour Window)
-            // Focus on items with > 10gp margins. 
-            // Profit Potential = Margin * minimum of (Buy Limit * 2 OR 1/3rd of daily volume)
             let overnight = [...usable].filter(x => x.margin >= 10).sort((a, b) => {
                 let capA = a.limit > 0 ? Math.min(a.limit * 2, a.volume / 3) : (a.volume / 3);
                 let capB = b.limit > 0 ? Math.min(b.limit * 2, b.volume / 3) : (b.volume / 3);
-                return (b.margin * capB) - (a.margin * capA);
-            });
+                let scoreA = (a.margin * capA) * (a.aiScore / 100);
+                let scoreB = (b.margin * capB) * (b.aiScore / 100);
+                return scoreB - scoreA;
+            }).slice(0, 20);
 
-            // Fallback if there aren't 20 high-margin items trading today
-            if (overnight.length < 20) {
-                overnight = [...usable].sort((a, b) => b.margin - a.margin).slice(0, 20);
-            } else {
-                overnight = overnight.slice(0, 20);
-            }
-
-            // Pass 'false' for general, 'true' for overnight to format the cards accurately
-            populateCards('recContainer', general, false);
-            populateCards('overnightContainer', overnight, true);
+            populateHomeCards('recContainer', general, false);
+            populateHomeCards('overnightContainer', overnight, true);
         }
 
-        function populateCards(containerId, data, isOvernight) {
+        function populateHomeCards(containerId, data, isOvernight) {
             const container = document.getElementById(containerId);
             if (!data || data.length === 0) {
                 container.innerHTML = `<div class="loading-overlay">No data available</div>`;
@@ -585,7 +659,6 @@
                 div.className = "card";
                 div.onclick = () => openGraph(item);
                 
-                // Calculate the realistic profit ceiling based on time window and limits
                 let cap = item.limit > 0 
                     ? Math.min(item.limit * (isOvernight ? 2 : 1), item.volume / (isOvernight ? 3 : 6)) 
                     : (item.volume / (isOvernight ? 3 : 6));
@@ -594,13 +667,30 @@
                 let timeLabel = isOvernight ? "Est 8h Profit" : "Est 4h Profit";
 
                 div.innerHTML = `
-                    <img src="${item.icon}" loading="lazy" alt="Item Icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'">
-                    <div class="card-info">
+                    <div class="card-header">
+                        <img src="${item.icon}" loading="lazy" alt="Item Icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'">
                         <div class="card-title">${idx + 1}. ${item.name}</div>
-                        <div>Buy: ${item.buy.toLocaleString()} | Sell: ${item.sell.toLocaleString()} | Limit: ${item.limit.toLocaleString()}</div>
-                        <div>Margin: <span class="highlight">+${item.margin.toLocaleString()} gp</span> | Vol: ${item.volume.toLocaleString()}</div>
-                        <div style="color:#aaa; font-size:0.75rem; margin-top:4px;">
-                            ${timeLabel}: <span style="color:#FF9800; font-weight:bold;">~${potProfit.toLocaleString()} gp</span>
+                    </div>
+                    <div style="width: 100%;">
+                        <div class="card-row">
+                            <span class="label">Buy / Sell:</span>
+                            <span>${item.buy.toLocaleString()} / ${item.sell.toLocaleString()}</span>
+                        </div>
+                        <div class="card-row">
+                            <span class="label">Margin:</span>
+                            <span class="highlight">+${item.margin.toLocaleString()} gp (${item.roiPct}%)</span>
+                        </div>
+                        <div class="card-row">
+                            <span class="label">Vol / Limit:</span>
+                            <span>${item.volume.toLocaleString()} / ${item.limit.toLocaleString()}</span>
+                        </div>
+                        <div class="card-badges">
+                            <span class="badge ${item.trendClass}">${item.trendIcon} ${item.trend}</span>
+                            <span class="badge ${item.aiBadgeClass}">AI: ${item.aiRating}</span>
+                            <span class="badge ${item.dataRatingClass}">Data: ${item.dataRatingText}</span>
+                        </div>
+                        <div class="card-footer">
+                            ${timeLabel}: ~${potProfit.toLocaleString()} gp
                         </div>
                     </div>
                 `;
@@ -612,7 +702,6 @@
             currentParentSkill = skill;
             document.querySelectorAll('.parent-sub-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-
             currentSubFilter = "all";
             currentPage = 1;
             const smithingTabs = document.getElementById('smithingSubTabs');
@@ -628,7 +717,7 @@
                 craftingTabs.style.display = "flex";
                 craftingTabs.querySelector('.child-sub-btn').classList.add('active');
             }
-            filterAndSortTable();
+            filterAndSortData();
         }
 
         function setSubFilter(filter, btn) {
@@ -637,7 +726,7 @@
             let parentContainer = btn.parentElement;
             parentContainer.querySelectorAll('.child-sub-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            filterAndSortTable();
+            filterAndSortData();
         }
 
         async function setCategory(cat, btn) {
@@ -670,74 +759,52 @@
                 tableWrapper.style.display = "block";
 
                 if (cat === 'alch') {
-                    sortField = "alch_profit";
-                    sortAsc = false;
+                    sortField = "alch_profit"; sortAsc = false;
                     document.getElementById('tableHeaders').innerHTML = `
-                        <th>Icon</th>
-                        <th onclick="toggleSort('name')">Item ↕</th>
-                        <th onclick="toggleSort('buy')">Buy Price ↕</th>
-                        <th onclick="toggleSort('alch_value')">Alch Value ↕</th>
-                        <th onclick="toggleSort('alch_profit')">Profit/Cast ↕</th>
-                        <th onclick="toggleSort('limit')">Limit ↕</th>
+                        <th>Icon</th><th onclick="toggleSort('name')">Item ↕</th><th onclick="toggleSort('buy')">Buy Price ↕</th>
+                        <th onclick="toggleSort('alch_value')">Alch Value ↕</th><th onclick="toggleSort('alch_profit')">Profit/Cast ↕</th><th onclick="toggleSort('limit')">Limit ↕</th>
                     `;
                 } else if (cat === 'crafting') {
                     parentSubTabs.style.display = "flex";
                     if (currentParentSkill === 'smithing') smithingTabs.style.display = "flex";
                     if (currentParentSkill === 'crafting') craftingTabs.style.display = "flex";
-
-                    sortField = "level";
-                    sortAsc = false;
-
+                    sortField = "level"; sortAsc = false;
                     document.getElementById('tableHeaders').innerHTML = `
-                        <th>Icon</th>
-                        <th onclick="toggleSort('name')">Product ↕</th>
-                        <th onclick="toggleSort('level')">Lvl ↕</th>
-                        <th>Ingredients Required</th>
-                        <th onclick="toggleSort('cost')">Craft Cost ↕</th>
-                        <th onclick="toggleSort('sell')">Sell Price ↕</th>
-                        <th onclick="toggleSort('profit')">GE Profit ↕</th>
-                        <th onclick="toggleSort('alch_profit')">Alch Profit ↕</th>
+                        <th>Icon</th><th onclick="toggleSort('name')">Product ↕</th><th onclick="toggleSort('level')">Lvl ↕</th>
+                        <th>Ingredients Required</th><th onclick="toggleSort('cost')">Craft Cost ↕</th><th onclick="toggleSort('sell')">Sell Price ↕</th>
+                        <th onclick="toggleSort('profit')">GE Profit ↕</th><th onclick="toggleSort('alch_profit')">Alch Profit ↕</th>
                     `;
                 } else {
-                    sortField = "volume";
-                    sortAsc = false;
+                    sortField = "volume"; sortAsc = false;
                     document.getElementById('tableHeaders').innerHTML = `
-                        <th>Icon</th>
-                        <th onclick="toggleSort('name')">Item ↕</th>
-                        <th onclick="toggleSort('buy')">Buy ↕</th>
-                        <th onclick="toggleSort('sell')">Sell ↕</th>
-                        <th onclick="toggleSort('tax')">Tax ↕</th>
-                        <th onclick="toggleSort('margin')">Profit ↕</th>
-                        <th onclick="toggleSort('volume')">Volume ↕</th>
-                        <th onclick="toggleSort('limit')">Limit ↕</th>
+                        <th>Icon</th><th onclick="toggleSort('name')">Item ↕</th><th onclick="toggleSort('buy')">Buy ↕</th><th onclick="toggleSort('sell')">Sell ↕</th>
+                        <th onclick="toggleSort('tax')">Tax ↕</th><th onclick="toggleSort('margin')">Profit ↕</th><th onclick="toggleSort('trend')">24h Trend ↕</th>
+                        <th onclick="toggleSort('aiScore')">AI Confidence ↕</th><th onclick="toggleSort('volume')">Volume ↕</th><th onclick="toggleSort('limit')">Limit ↕</th>
                     `;
                 }
                 
-                document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="loading-overlay">Loading data...</td></tr>`;
-                
-                try {
-                    await filterAndSortTable();
-                } catch (err) {
-                    document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="error-overlay">❌ Table Error: ${err.message}</td></tr>`;
+                try { await filterAndSortData(); } 
+                catch (err) {
+                    document.getElementById('tableBody').innerHTML = `<tr><td colspan="10" class="error-overlay">❌ Table Error: ${err.message}</td></tr>`;
+                    document.getElementById('gridContainerEl').innerHTML = `<div class="error-overlay">❌ Grid Error: ${err.message}</div>`;
                 }
             }
         }
 
         function toggleSort(field) {
-            if (sortField === field) {
-                sortAsc = !sortAsc;
-            } else {
-                sortField = field;
-                sortAsc = (field === 'name');
-            }
+            if (sortField === field) { sortAsc = !sortAsc; } 
+            else { sortField = field; sortAsc = (field === 'name'); }
             currentPage = 1;
-            filterAndSortTable();
+            filterAndSortData();
         }
 
         function changePage(direction) {
             currentPage += direction;
-            filterAndSortTable();
-            document.querySelector('.table-container').scrollTop = 0;
+            filterAndSortData();
+            let tableCont = document.getElementById('tableContainerEl');
+            let gridCont = document.getElementById('gridContainerEl');
+            if (tableCont.style.display !== 'none') tableCont.scrollTop = 0;
+            if (gridCont.style.display !== 'none') window.scrollTo(0, 0);
         }
 
         function getVolumeColor(vol) {
@@ -747,15 +814,9 @@
             let t = Math.min(logVol / maxLog, 1);
             let r, g, b;
             if (t < 0.5) {
-                let subT = t * 2;
-                r = 255;
-                g = Math.round(82 + (235 - 82) * subT);
-                b = Math.round(82 + (59 - 82) * subT);
+                let subT = t * 2; r = 255; g = Math.round(82 + (235 - 82) * subT); b = Math.round(82 + (59 - 82) * subT);
             } else {
-                let subT = (t - 0.5) * 2;
-                r = Math.round(255 + (0 - 255) * subT);
-                g = Math.round(235 + (230 - 235) * subT);
-                b = Math.round(59 + (118 - 59) * subT);
+                let subT = (t - 0.5) * 2; r = Math.round(255 + (0 - 255) * subT); g = Math.round(235 + (230 - 235) * subT); b = Math.round(59 + (118 - 59) * subT);
             }
             return `rgb(${r}, ${g}, ${b})`;
         }
@@ -766,83 +827,16 @@
             return '#00E676';
         }
 
-        function renderTable(data) {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = "";
-            if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="loading-overlay">No matching items found</td></tr>`;
-                return;
-            }
-            
-            data.forEach(item => {
-                let tr = document.createElement('tr');
-                tr.onclick = () => openGraph(item);
-                
-                if (currentCategory === 'alch') {
-                    let alchClass = item.alch_profit > 0 ? "alch-highlight" : "neg-highlight";
-                    let alchSign = item.alch_profit > 0 ? "+" : "";
-                    tr.innerHTML = `
-                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
-                        <td><b>${item.name}</b></td>
-                        <td>${item.buy.toLocaleString()}</td>
-                        <td>${item.alch_value.toLocaleString()}</td>
-                        <td class="${alchClass}">${alchSign}${item.alch_profit.toLocaleString()}</td>
-                        <td>${item.limit.toLocaleString()}</td>
-                    `;
-                } else if (currentCategory === 'crafting') {
-                    let profitClass = item.profit > 0 ? "highlight" : "neg-highlight";
-                    let profitSign = item.profit > 0 ? "+" : "";
-                    let alchClass = item.alch_profit > 0 ? "alch-highlight" : "neg-highlight";
-                    let alchSign = item.alch_profit > 0 ? "+" : "";
-                    
-                    let ingText = item.ingredients.map(ing => `${ing.quantity}x ${ing.name}`).join(', ');
-                    let yieldText = item.yield_amount > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield_amount}x)</span>` : "";
-
-                    tr.innerHTML = `
-                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
-                        <td><b>${item.name}</b>${yieldText}</td>
-                        <td><span style="color:#FF9800; font-weight:bold;">${item.level}</span></td>
-                        <td class="ing-text">${ingText}</td>
-                        <td>${item.cost.toLocaleString()}</td>
-                        <td>${item.sell.toLocaleString()}</td>
-                        <td class="${profitClass}">${profitSign}${item.profit.toLocaleString()}</td>
-                        <td class="${alchClass}">${alchSign}${item.alch_profit.toLocaleString()}</td>
-                    `;
-                } else {
-                    let volColor = getVolumeColor(item.volume);
-                    let marginClass = item.margin > 0 ? "highlight" : "neg-highlight";
-                    let marginSign = item.margin > 0 ? "+" : "";
-                    tr.innerHTML = `
-                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
-                        <td><b>${item.name}</b></td>
-                        <td>${item.buy.toLocaleString()}</td>
-                        <td>${item.sell.toLocaleString()}</td>
-                        <td class="tax-text">${item.tax > 0 ? '-' + item.tax.toLocaleString() : '0'}</td>
-                        <td class="${marginClass}">${marginSign}${item.margin.toLocaleString()}</td>
-                        <td><span style="color: ${volColor}; font-weight: bold;">${item.volume.toLocaleString()}</span></td>
-                        <td>${item.limit.toLocaleString()}</td>
-                    `;
-                }
-                tbody.appendChild(tr);
-            });
-        }
-
-        async function filterAndSortTable() {
+        async function filterAndSortData() {
             try {
                 let sourceData = [];
-                
-                if (currentCategory === 'crafting') {
-                    sourceData = await getCalculatedRecipes();
-                } else {
-                    let itemsMap = await loadMarketData();
-                    sourceData = Object.values(itemsMap);
-                }
+                if (currentCategory === 'crafting') { sourceData = await getCalculatedRecipes(); } 
+                else { let itemsMap = await loadMarketData(); sourceData = Object.values(itemsMap); }
 
                 const query = document.getElementById('searchInput').value.toUpperCase();
                 
                 let filtered = sourceData.filter(item => {
                     let matchesSearch = item.name.toUpperCase().includes(query);
-                    
                     if (currentCategory === 'crafting') {
                         if (currentParentSkill === 'smithing') {
                             if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('smithing_');
@@ -850,11 +844,8 @@
                         } else if (currentParentSkill === 'crafting') {
                             if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('crafting_');
                             return matchesSearch && (item.type === currentSubFilter);
-                        } else if (currentParentSkill === 'cooking') {
-                            return matchesSearch && (item.type === 'cooking');
-                        }
+                        } else if (currentParentSkill === 'cooking') { return matchesSearch && (item.type === 'cooking'); }
                     }
-                    
                     let matchesCat = true;
                     if (currentCategory === 'alch') matchesCat = (item.alch_value > 0);
                     return matchesSearch && matchesCat;
@@ -863,9 +854,7 @@
                 filtered.sort((a, b) => {
                     let valA = a[sortField] !== undefined ? a[sortField] : 0;
                     let valB = b[sortField] !== undefined ? b[sortField] : 0;
-                    if (typeof valA === 'string') {
-                        return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                    }
+                    if (typeof valA === 'string') return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
                     return sortAsc ? valA - valB : valB - valA;
                 });
 
@@ -877,12 +866,126 @@
                 let paginatedData = filtered.slice(start, start + pageSize);
 
                 document.getElementById('pageIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
-                renderTable(paginatedData);
                 
-            } catch (err) {
-                console.error("filterAndSortTable error:", err);
-                document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="error-overlay">❌ Execution Error: ${err.message}</td></tr>`;
-            }
+                let tableCont = document.getElementById('tableContainerEl');
+                let gridCont = document.getElementById('gridContainerEl');
+
+                if (currentViewMode === 'grid') {
+                    tableCont.style.display = 'none';
+                    gridCont.style.display = 'grid';
+                    renderGrid(paginatedData);
+                } else {
+                    gridCont.style.display = 'none';
+                    tableCont.style.display = 'block';
+                    renderTable(paginatedData);
+                }
+                
+            } catch (err) { console.error("Data sorting error:", err); }
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = "";
+            if (!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="10" class="loading-overlay">No matching items found</td></tr>`; return; }
+            
+            data.forEach(item => {
+                let tr = document.createElement('tr');
+                tr.onclick = () => openGraph(item);
+                
+                if (currentCategory === 'alch') {
+                    let alchClass = item.alch_profit > 0 ? "alch-highlight" : "neg-highlight";
+                    let alchSign = item.alch_profit > 0 ? "+" : "";
+                    tr.innerHTML = `
+                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
+                        <td><b>${item.name}</b></td><td>${item.buy.toLocaleString()}</td><td>${item.alch_value.toLocaleString()}</td>
+                        <td class="${alchClass}">${alchSign}${item.alch_profit.toLocaleString()}</td><td>${item.limit.toLocaleString()}</td>
+                    `;
+                } else if (currentCategory === 'crafting') {
+                    let profitClass = item.profit > 0 ? "highlight" : "neg-highlight";
+                    let profitSign = item.profit > 0 ? "+" : "";
+                    let alchClass = item.alch_profit > 0 ? "alch-highlight" : "neg-highlight";
+                    let alchSign = item.alch_profit > 0 ? "+" : "";
+                    let ingText = item.ingredients.map(ing => `${ing.quantity}x ${ing.name}`).join(', ');
+                    let yieldText = item.yield_amount > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield_amount}x)</span>` : "";
+
+                    tr.innerHTML = `
+                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
+                        <td><b>${item.name}</b>${yieldText}</td><td><span style="color:#FF9800; font-weight:bold;">${item.level}</span></td>
+                        <td class="ing-text">${ingText}</td><td>${item.cost.toLocaleString()}</td><td>${item.sell.toLocaleString()}</td>
+                        <td class="${profitClass}">${profitSign}${item.profit.toLocaleString()}</td><td class="${alchClass}">${alchSign}${item.alch_profit.toLocaleString()}</td>
+                    `;
+                } else {
+                    let volColor = getVolumeColor(item.volume);
+                    let marginClass = item.margin > 0 ? "highlight" : "neg-highlight";
+                    let marginSign = item.margin > 0 ? "+" : "";
+                    tr.innerHTML = `
+                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
+                        <td><b>${item.name}</b></td><td>${item.buy.toLocaleString()}</td><td>${item.sell.toLocaleString()}</td>
+                        <td class="tax-text">${item.tax > 0 ? '-' + item.tax.toLocaleString() : '0'}</td><td class="${marginClass}">${marginSign}${item.margin.toLocaleString()}</td>
+                        <td class="${item.trendClass}">${item.trendIcon} ${item.trend}</td><td class="${item.aiBadgeClass}">${item.aiRating} (${item.aiScore})</td>
+                        <td><span style="color: ${volColor}; font-weight: bold;">${item.volume.toLocaleString()}</span></td><td>${item.limit.toLocaleString()}</td>
+                    `;
+                }
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderGrid(data) {
+            const grid = document.getElementById('gridContainerEl');
+            grid.innerHTML = "";
+            if (!data || data.length === 0) { grid.innerHTML = `<div class="loading-overlay" style="grid-column: 1 / -1;">No matching items found</div>`; return; }
+
+            data.forEach((item, idx) => {
+                let div = document.createElement('div');
+                div.className = "card";
+                div.onclick = () => openGraph(item);
+                let contentHTML = "";
+
+                if (currentCategory === 'alch') {
+                    let alchClass = item.alch_profit > 0 ? "alch-highlight" : "neg-highlight";
+                    let alchSign = item.alch_profit > 0 ? "+" : "";
+                    contentHTML = `
+                        <div class="card-row"><span class="label">Buy Price:</span><span>${item.buy.toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Alch Value:</span><span>${item.alch_value.toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Limit:</span><span>${item.limit.toLocaleString()}</span></div>
+                        <div class="card-footer ${alchClass}">Profit/Cast: ${alchSign}${item.alch_profit.toLocaleString()} gp</div>
+                    `;
+                } else if (currentCategory === 'crafting') {
+                    let profitClass = item.profit > 0 ? "highlight" : "neg-highlight";
+                    let profitSign = item.profit > 0 ? "+" : "";
+                    let yieldText = item.yield_amount > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield_amount}x)</span>` : "";
+                    let ingText = item.ingredients.map(ing => `${ing.quantity}x ${ing.name}`).join(', ');
+                    item.name = item.name + yieldText; 
+
+                    contentHTML = `
+                        <div class="card-row"><span class="label">Level Required:</span><span style="color:#FF9800; font-weight:bold;">${item.level}</span></div>
+                        <div class="card-row"><span class="label">Craft Cost:</span><span>${item.cost.toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Sell Price:</span><span>${item.sell.toLocaleString()}</span></div>
+                        <div class="card-row" style="flex-direction:column; gap:4px; margin: 6px 0;">
+                            <span class="label">Ingredients:</span>
+                            <span class="ing-text" style="line-height:1.2;">${ingText}</span>
+                        </div>
+                        <div class="card-footer ${profitClass}">GE Profit: ${profitSign}${item.profit.toLocaleString()} gp</div>
+                    `;
+                } else {
+                    contentHTML = `
+                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${item.buy.toLocaleString()} / ${item.sell.toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Margin:</span><span class="highlight">+${item.margin.toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${item.volume.toLocaleString()} / ${item.limit.toLocaleString()}</span></div>
+                        <div class="card-badges">
+                            <span class="badge ${item.trendClass}">${item.trendIcon} ${item.trend}</span>
+                            <span class="badge ${item.dataRatingClass}">Data: ${item.dataRatingText}</span>
+                            <span class="badge ${item.aiBadgeClass}">AI: ${item.aiRating} (${item.aiScore})</span>
+                        </div>
+                    `;
+                }
+
+                div.innerHTML = `
+                    <div class="card-header"><img src="${item.icon}" loading="lazy" alt="Item Icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"><div class="card-title">${item.name}</div></div>
+                    <div style="width: 100%; display:flex; flex-direction:column; flex-grow:1;">${contentHTML}</div>
+                `;
+                grid.appendChild(div);
+            });
         }
 
         async function openGraph(item) {
@@ -895,14 +998,26 @@
             let glowColor = getProfitColorHex(marginVal);
             iconEl.style.filter = `drop-shadow(0 0 10px ${glowColor}) drop-shadow(0 0 20px ${glowColor})`;
 
-            document.getElementById('modalBuy').innerText = item.buy ? item.buy.toLocaleString() : '0';
+            // Load primary data into compact tables
             document.getElementById('modalSell').innerText = item.sell ? item.sell.toLocaleString() : '0';
-            document.getElementById('modalTax').innerText = item.tax ? '-' + item.tax.toLocaleString() : '0';
+            document.getElementById('modalBuy').innerText = item.buy ? item.buy.toLocaleString() : '0';
             
+            let roiText = item.roiPct ? ` (${item.roiPct}%)` : '';
             let mClass = marginVal > 0 ? "highlight" : "neg-highlight";
             let mSign = marginVal > 0 ? "+" : "";
-            document.getElementById('modalMargin').innerHTML = `<span class="${mClass}">${mSign}${marginVal.toLocaleString()} gp</span>`;
-            document.getElementById('modalLimit').innerText = item.limit ? item.limit.toLocaleString() : '100';
+            document.getElementById('modalMargin').innerHTML = `<span class="${mClass}">${mSign}${marginVal.toLocaleString()} gp${roiText}</span>`;
+            
+            document.getElementById('modalVolume').innerText = item.volume ? item.volume.toLocaleString() : '0';
+            document.getElementById('modalLimit').innerText = item.limit ? item.limit.toLocaleString() : '0';
+            
+            // Secondary row
+            document.getElementById('modalTrend').innerHTML = `<span class="${item.trendClass}">${item.trendIcon || ''} ${item.trend || 'Stable'}</span>`;
+            document.getElementById('modalConfidence').innerHTML = `<span class="${item.aiBadgeClass}">${item.aiRating || 'Medium'} (${item.aiScore || 50})</span>`;
+            
+            let safeDataRatingClass = item.dataRatingClass || "neg-highlight";
+            let safeDataRatingText = item.dataRatingText || "Poor";
+            document.getElementById('modalDataRating').innerHTML = `<span class="${safeDataRatingClass}">${safeDataRatingText}</span>`;
+            document.getElementById('modalAlch').innerText = item.alch_value ? item.alch_value.toLocaleString() + ' gp' : '0 gp';
 
             document.getElementById('chartModal').style.display = "block";
 
@@ -1041,16 +1156,9 @@
             });
         }
 
-        function closeGraph() {
-            document.getElementById('chartModal').style.display = "none";
-        }
+        function closeGraph() { document.getElementById('chartModal').style.display = "none"; }
+        window.onclick = function(event) { let modal = document.getElementById('chartModal'); if (event.target == modal) modal.style.display = "none"; }
 
-        window.onclick = function(event) {
-            let modal = document.getElementById('chartModal');
-            if (event.target == modal) modal.style.display = "none";
-        }
-
-        // Kick off the application
         initDashboard();
     </script>
 </body>
