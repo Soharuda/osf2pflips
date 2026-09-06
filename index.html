@@ -365,7 +365,7 @@
                 if (result.results && result.results[0].response.result) {
                     return result.results[0].response.result.rows;
                 }
-                throw new Error("Turso response format invalid: " + JSON.stringify(result));
+                throw new Error("Turso response invalid: " + JSON.stringify(result));
             } catch (err) {
                 console.error("Turso Error:", err);
                 throw err;
@@ -517,7 +517,7 @@
                 let itemsMap = await loadMarketData();
                 renderHomeView(Object.values(itemsMap));
             } catch (err) {
-                document.getElementById('recContainer').innerHTML = `<div class="error-overlay">❌ Error loading dashboard: ${err.message}</div>`;
+                document.getElementById('recContainer').innerHTML = `<div class="error-overlay">❌ ${err.message}</div>`;
             }
         }
 
@@ -662,7 +662,7 @@
                 try {
                     await filterAndSortTable();
                 } catch (err) {
-                    document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="error-overlay">❌ Failed to load recipes: ${err.message}</td></tr>`;
+                    document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="error-overlay">❌ Error: ${err.message}</td></tr>`;
                 }
             }
         }
@@ -771,53 +771,58 @@
         }
 
         async function filterAndSortTable() {
-            let sourceData = [];
-            if (currentCategory === 'crafting') {
-                sourceData = await getCalculatedRecipes();
-            } else {
-                let itemsMap = await loadMarketData();
-                sourceData = Object.values(itemsMap);
-            }
-
-            const query = document.getElementById('searchInput').value.toUpperCase();
-            
-            let filtered = sourceData.filter(item => {
-                let matchesSearch = item.name.toUpperCase().includes(query);
+            try {
+                let sourceData = [];
                 if (currentCategory === 'crafting') {
-                    if (currentParentSkill === 'smithing') {
-                        if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('smithing_');
-                        return matchesSearch && (item.type === currentSubFilter);
-                    } else if (currentParentSkill === 'crafting') {
-                        if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('crafting_');
-                        return matchesSearch && (item.type === currentSubFilter);
-                    } else if (currentParentSkill === 'cooking') {
-                        return matchesSearch && (item.type === 'cooking');
-                    }
+                    sourceData = await getCalculatedRecipes();
+                } else {
+                    let itemsMap = await loadMarketData();
+                    sourceData = Object.values(itemsMap);
                 }
+
+                const query = document.getElementById('searchInput').value.toUpperCase();
                 
-                let matchesCat = true;
-                if (currentCategory === 'alch') matchesCat = (item.alch_value > 0);
-                return matchesSearch && matchesCat;
-            });
+                let filtered = sourceData.filter(item => {
+                    let matchesSearch = item.name.toUpperCase().includes(query);
+                    if (currentCategory === 'crafting') {
+                        if (currentParentSkill === 'smithing') {
+                            if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('smithing_');
+                            return matchesSearch && (item.type === currentSubFilter);
+                        } else if (currentParentSkill === 'crafting') {
+                            if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('crafting_');
+                            return matchesSearch && (item.type === currentSubFilter);
+                        } else if (currentParentSkill === 'cooking') {
+                            return matchesSearch && (item.type === 'cooking');
+                        }
+                    }
+                    
+                    let matchesCat = true;
+                    if (currentCategory === 'alch') matchesCat = (item.alch_value > 0);
+                    return matchesSearch && matchesCat;
+                });
 
-            filtered.sort((a, b) => {
-                let valA = a[sortField] !== undefined ? a[sortField] : 0;
-                let valB = b[sortField] !== undefined ? b[sortField] : 0;
-                if (typeof valA === 'string') {
-                    return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                }
-                return sortAsc ? valA - valB : valB - valA;
-            });
+                filtered.sort((a, b) => {
+                    let valA = a[sortField] !== undefined ? a[sortField] : 0;
+                    let valB = b[sortField] !== undefined ? b[sortField] : 0;
+                    if (typeof valA === 'string') {
+                        return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    }
+                    return sortAsc ? valA - valB : valB - valA;
+                });
 
-            let totalPages = Math.ceil(filtered.length / pageSize) || 1;
-            if (currentPage > totalPages) currentPage = totalPages;
-            if (currentPage < 1) currentPage = 1;
+                let totalPages = Math.ceil(filtered.length / pageSize) || 1;
+                if (currentPage > totalPages) currentPage = totalPages;
+                if (currentPage < 1) currentPage = 1;
 
-            let start = (currentPage - 1) * pageSize;
-            let paginatedData = filtered.slice(start, start + pageSize);
+                let start = (currentPage - 1) * pageSize;
+                let paginatedData = filtered.slice(start, start + pageSize);
 
-            document.getElementById('pageIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
-            renderTable(paginatedData);
+                document.getElementById('pageIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
+                renderTable(paginatedData);
+            } catch (err) {
+                console.error("filterAndSortTable error:", err);
+                document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="error-overlay">❌ Error loading table: ${err.message}</td></tr>`;
+            }
         }
 
         async function openGraph(item) {
