@@ -257,7 +257,7 @@
             <!-- General Net Profit Header Card & Performance Chart -->
             <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                 <div>
-                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Total Realized Net Profit / Loss</span>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Total Net Gain / Loss (Realized + Unrealized)</span>
                     <span id="homeTotalProfitDisplay" class="highlight" style="font-size: 1.5rem; font-weight: bold;">0 gp</span>
                 </div>
                 <div style="flex: 1; min-width: 250px; max-width: 400px; height: 60px; position: relative;">
@@ -1159,10 +1159,22 @@
 
         function updateHomeHeaderStats() {
             const totalProfitEl = document.getElementById('homeTotalProfitDisplay');
-            let totalProfit = userSalesHistory.reduce((sum, entry) => sum + entry.profit, 0);
+            
+            let totalRealizedProfit = userSalesHistory.reduce((sum, entry) => sum + entry.profit, 0);
+            
+            let activeInventoryValue = userPurchasesHistory.reduce((sum, entry) => {
+                let currentItem = cachedItemsMap[entry.itemId];
+                let currentValuation = currentItem ? (currentItem.buy * entry.quantity) : entry.totalCost;
+                return sum + currentValuation;
+            }, 0);
+
+            let totalInvestedCapital = userPurchasesHistory.reduce((sum, entry) => sum + entry.totalCost, 0);
+            let unrealizedGain = activeInventoryValue - totalInvestedCapital;
+            let overallNet = totalRealizedProfit + unrealizedGain;
+
             if (totalProfitEl) {
-                totalProfitEl.innerText = (totalProfit >= 0 ? "+" : "") + totalProfit.toLocaleString() + " gp";
-                totalProfitEl.className = totalProfit >= 0 ? "highlight" : "neg-highlight";
+                totalProfitEl.innerText = (overallNet >= 0 ? "+" : "") + overallNet.toLocaleString() + " gp";
+                totalProfitEl.className = overallNet >= 0 ? "highlight" : "neg-highlight";
             }
             renderHomeMiniChart();
         }
@@ -1172,9 +1184,12 @@
             if (!ctx) return;
             if (homeMiniChartObj) homeMiniChartObj.destroy();
 
-            // Interleave and sort chronological flow combining purchases (negative capital outlays) and sales (realized profits)
             let combinedEvents = [
-                ...userPurchasesHistory.map(p => ({ time: p.id, val: -p.totalCost })),
+                ...userPurchasesHistory.map(p => {
+                    let item = cachedItemsMap[p.itemId];
+                    let currentVal = item ? (item.buy * p.quantity) : p.totalCost;
+                    return { time: p.id, val: currentVal - p.totalCost };
+                }),
                 ...userSalesHistory.map(s => ({ time: s.id, val: s.profit }))
             ].sort((a, b) => a.time - b.time);
 
