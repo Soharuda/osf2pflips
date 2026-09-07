@@ -631,16 +631,16 @@
             let general = [...usable].sort((a, b) => {
                 let capA = a.limit > 0 ? Math.min(a.limit, a.volume / 6) : (a.volume / 6);
                 let capB = b.limit > 0 ? Math.min(b.limit, b.volume / 6) : (b.volume / 6);
-                let scoreA = (a.margin * capA) * (a.volume / 100000);
-                let scoreB = (b.margin * capB) * (b.volume / 100000);
+                let scoreA = a.margin * Math.sqrt(capA);
+                let scoreB = b.margin * Math.sqrt(capB);
                 return scoreB - scoreA;
             }).slice(0, limit);
 
             let overnight = [...usable].filter(x => x.margin >= 10).sort((a, b) => {
                 let capA = a.limit > 0 ? Math.min(a.limit * 2, a.volume / 3) : (a.volume / 3);
                 let capB = b.limit > 0 ? Math.min(b.limit * 2, b.volume / 3) : (b.volume / 3);
-                let scoreA = (a.margin * capA) * (a.volume / 100000);
-                let scoreB = (b.margin * capB) * (b.volume / 100000);
+                let scoreA = a.margin * Math.sqrt(capA);
+                let scoreB = b.margin * Math.sqrt(capB);
                 return scoreB - scoreA;
             }).slice(0, limit);
 
