@@ -257,7 +257,7 @@
             <!-- General Net Profit Header Card & Performance Chart -->
             <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                 <div>
-                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Total Net Gain / Loss (Realized + Unrealized)</span>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Total Net Gain / Loss (Realized - Deployed Capital)</span>
                     <span id="homeTotalProfitDisplay" class="highlight" style="font-size: 1.5rem; font-weight: bold;">0 gp</span>
                 </div>
                 <div style="flex: 1; min-width: 250px; max-width: 400px; height: 60px; position: relative;">
@@ -1164,20 +1164,12 @@
             }
             
             let totalRealizedProfit = userSalesHistory.reduce((sum, entry) => sum + entry.profit, 0);
-            
-            let activeInventoryValue = userPurchasesHistory.reduce((sum, entry) => {
-                let currentItem = cachedItemsMap[entry.itemId];
-                let currentValuation = (currentItem && currentItem.sell > 0) ? (currentItem.sell * entry.quantity) : entry.totalCost;
-                return sum + currentValuation;
-            }, 0);
-
             let totalInvestedCapital = userPurchasesHistory.reduce((sum, entry) => sum + entry.totalCost, 0);
-            let unrealizedGain = activeInventoryValue - totalInvestedCapital;
-            let overallNet = totalRealizedProfit + unrealizedGain;
+            let netPosition = totalRealizedProfit - totalInvestedCapital;
 
             if (totalProfitEl) {
-                totalProfitEl.innerText = (overallNet >= 0 ? "+" : "") + overallNet.toLocaleString() + " gp";
-                totalProfitEl.className = overallNet >= 0 ? "highlight" : "neg-highlight";
+                totalProfitEl.innerText = (netPosition >= 0 ? "+" : "") + netPosition.toLocaleString() + " gp";
+                totalProfitEl.className = netPosition >= 0 ? "highlight" : "neg-highlight";
             }
             renderHomeMiniChart();
         }
@@ -1188,11 +1180,7 @@
             if (homeMiniChartObj) homeMiniChartObj.destroy();
 
             let combinedEvents = [
-                ...userPurchasesHistory.map(p => {
-                    let item = cachedItemsMap[p.itemId];
-                    let currentVal = (item && item.sell > 0) ? (item.sell * p.quantity) : p.totalCost;
-                    return { time: p.id, val: currentVal - p.totalCost };
-                }),
+                ...userPurchasesHistory.map(p => ({ time: p.id, val: -p.totalCost })),
                 ...userSalesHistory.map(s => ({ time: s.id, val: s.profit }))
             ].sort((a, b) => a.time - b.time);
 
@@ -1217,8 +1205,8 @@
                     labels: labels,
                     datasets: [{
                         data: cumulativeData,
-                        borderColor: '#4CAF50',
-                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        borderColor: '#FF5252',
+                        backgroundColor: 'rgba(255, 82, 82, 0.1)',
                         borderWidth: 2,
                         fill: true,
                         pointRadius: 0,
