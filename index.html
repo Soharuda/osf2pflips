@@ -512,8 +512,10 @@
                 <label style="font-size: 0.8rem; color: var(--text-muted);" for="authEmailInput">Email Address</label>
                 <input type="email" id="authEmailInput" autocomplete="email" placeholder="Enter your email" style="width: 100%;" required>
                 
-                <label style="font-size: 0.8rem; color: var(--text-muted);" for="authPasswordInput">Password</label>
-                <input type="password" id="authPasswordInput" autocomplete="current-password" placeholder="Enter your password" oninput="checkPasswordStrength(this.value)" style="width: 100%;" required>
+                <div id="passwordContainer">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);" for="authPasswordInput">Password</label>
+                    <input type="password" id="authPasswordInput" autocomplete="current-password" placeholder="Enter your password" oninput="checkPasswordStrength(this.value)" style="width: 100%;">
+                </div>
                 
                 <!-- Password Strength Checklist -->
                 <div id="passwordReqContainer" class="password-requirements">
@@ -527,9 +529,12 @@
 
                 <button type="submit" class="auth-action-btn" id="authSubmitButton" style="padding: 10px; font-size: 0.9rem; margin-top: 5px; text-align: center; width: 100%;">Sign In</button>
                 
-                <div style="text-align: center; margin-top: 10px; font-size: 0.8rem;">
-                    <span id="authTogglePrompt" style="color: var(--text-muted);">Don't have an account?</span> 
-                    <span id="authToggleLink" onclick="toggleAuthMode()" style="color: var(--accent-orange); cursor: pointer; font-weight: bold;">Register</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 0.8rem;">
+                    <div>
+                        <span id="authTogglePrompt" style="color: var(--text-muted);">Don't have an account?</span> 
+                        <span id="authToggleLink" onclick="toggleAuthMode()" style="color: var(--accent-orange); cursor: pointer; font-weight: bold;">Register</span>
+                    </div>
+                    <span id="forgotPasswordLink" onclick="toggleForgotPasswordMode()" style="color: var(--accent-blue); cursor: pointer; font-weight: bold;">Forgot Password?</span>
                 </div>
             </form>
         </div>
@@ -734,6 +739,7 @@
         let activeModalItem = null;
         let currentUser = null;
         let isRegisterMode = false;
+        let isForgotPasswordMode = false;
         let userFavorites = JSON.parse(localStorage.getItem('osrs_f2p_favorites') || '[]');
         let userProfile = JSON.parse(localStorage.getItem('osrs_f2p_profile') || '{"username": "", "avatar": ""}');
         let userGainsHistory = JSON.parse(localStorage.getItem('osrs_f2p_gains') || '[]');
@@ -814,7 +820,6 @@
         function saveAccountSettings() {
             const newUsername = document.getElementById('accountUsernameInput').value.trim();
             const newAvatar = document.getElementById('accountAvatarInput').value.trim();
-            const statusEl = document.getElementById('accountMessageStatus');
             const saveBtn = document.getElementById('saveAccountBtn');
 
             userProfile.username = newUsername;
@@ -1032,10 +1037,13 @@
         function openAuthModal() {
             if (currentUser) return;
             isRegisterMode = false;
+            isForgotPasswordMode = false;
             document.getElementById('authModalTitle').innerText = "Account Login";
             document.getElementById('authSubmitButton').innerText = "Sign In";
             document.getElementById('authTogglePrompt').innerText = "Don't have an account?";
             document.getElementById('authToggleLink').innerText = "Register";
+            document.getElementById('forgotPasswordLink').style.display = 'inline';
+            document.getElementById('passwordContainer').style.display = 'block';
             document.getElementById('authMessageError').innerText = "";
             document.getElementById('authEmailInput').value = "";
             document.getElementById('authPasswordInput').value = "";
@@ -1050,8 +1058,11 @@
 
         function toggleAuthMode() {
             isRegisterMode = !isRegisterMode;
+            isForgotPasswordMode = false;
             const passInput = document.getElementById('authPasswordInput');
             const reqContainer = document.getElementById('passwordReqContainer');
+            document.getElementById('passwordContainer').style.display = 'block';
+            document.getElementById('forgotPasswordLink').style.display = 'inline';
 
             if (isRegisterMode) {
                 document.getElementById('authModalTitle').innerText = "Create Account";
@@ -1059,6 +1070,7 @@
                 document.getElementById('authTogglePrompt').innerText = "Already have an account?";
                 document.getElementById('authToggleLink').innerText = "Sign In";
                 passInput.setAttribute('autocomplete', 'new-password');
+                passInput.setAttribute('required', 'true');
                 reqContainer.style.display = 'flex';
                 checkPasswordStrength(passInput.value);
             } else {
@@ -1067,7 +1079,37 @@
                 document.getElementById('authTogglePrompt').innerText = "Don't have an account?";
                 document.getElementById('authToggleLink').innerText = "Register";
                 passInput.setAttribute('autocomplete', 'current-password');
+                passInput.setAttribute('required', 'true');
                 reqContainer.style.display = 'none';
+            }
+            document.getElementById('authMessageError').innerText = "";
+        }
+
+        function toggleForgotPasswordMode() {
+            isForgotPasswordMode = !isForgotPasswordMode;
+            isRegisterMode = false;
+            const titleEl = document.getElementById('authModalTitle');
+            const submitBtn = document.getElementById('authSubmitButton');
+            const passContainer = document.getElementById('passwordContainer');
+            const reqContainer = document.getElementById('passwordReqContainer');
+            const toggleDiv = document.getElementById('authTogglePrompt').parentElement;
+            const forgotLink = document.getElementById('forgotPasswordLink');
+
+            if (isForgotPasswordMode) {
+                titleEl.innerText = "Reset Password";
+                submitBtn.innerText = "Send Recovery Email";
+                passContainer.style.display = 'none';
+                reqContainer.style.display = 'none';
+                document.getElementById('authPasswordInput').removeAttribute('required');
+                toggleDiv.style.display = 'none';
+                forgotLink.innerText = "Back to Login";
+            } else {
+                titleEl.innerText = "Account Login";
+                submitBtn.innerText = "Sign In";
+                passContainer.style.display = 'block';
+                document.getElementById('authPasswordInput').setAttribute('required', 'true');
+                toggleDiv.style.display = 'block';
+                forgotLink.innerText = "Forgot Password?";
             }
             document.getElementById('authMessageError').innerText = "";
         }
@@ -1103,31 +1145,44 @@
             const errorEl = document.getElementById('authMessageError');
             errorEl.innerText = "";
 
-            if (!email || !password) {
-                errorEl.innerText = "Please fill in all fields.";
+            if (!email) {
+                errorEl.innerText = "Please enter your email address.";
                 return;
             }
 
-            if (isRegisterMode) {
-                const hasLength = password.length >= 8;
-                const hasUpper = /[A-Z]/.test(password);
-                const hasNumber = /[0-9]/.test(password);
-                const hasSpecial = /[^A-Za-z0-9]/.test(password);
-
-                if (!hasLength || !hasUpper || !hasNumber || !hasSpecial) {
-                    errorEl.innerText = "Please meet all password requirements.";
+            try {
+                if (isForgotPasswordMode) {
+                    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                        redirectTo: window.location.href,
+                    });
+                    if (error) throw error;
+                    alert("Password recovery email sent! Check your inbox for the reset link.");
+                    closeAuthModal();
                     return;
                 }
-            }
 
-            try {
+                if (!password) {
+                    errorEl.innerText = "Please enter your password.";
+                    return;
+                }
+
                 if (isRegisterMode) {
-                    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                    const hasLength = password.length >= 8;
+                    const hasUpper = /[A-Z]/.test(password);
+                    const hasNumber = /[0-9]/.test(password);
+                    const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+                    if (!hasLength || !hasUpper || !hasNumber || !hasSpecial) {
+                        errorEl.innerText = "Please meet all password requirements.";
+                        return;
+                    }
+
+                    const { error } = await supabaseClient.auth.signUp({ email, password });
                     if (error) throw error;
                     alert("Registration successful! You are now logged in.");
                     closeAuthModal();
                 } else {
-                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
                     if (error) throw error;
                     closeAuthModal();
                 }
