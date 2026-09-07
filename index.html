@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OSRS F2P Market Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --bg-base: #121212;
@@ -31,7 +32,7 @@
         .toggle-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem; padding: 4px; border-radius: 4px; }
         .toggle-btn:hover { color: #fff; background: #2a2a2a; }
 
-        .sidebar-menu { display: flex; flex-direction: column; gap: 4px; padding: 10px; overflow-y: auto; }
+        .sidebar-menu { display: flex; flex-direction: column; gap: 4px; padding: 10px; overflow-y: auto; flex-grow: 1; }
         .nav-btn { background: transparent; color: var(--text-muted); border: none; padding: 10px 12px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 0.9rem; font-weight: bold; transition: background 0.2s, color 0.2s; display: flex; align-items: center; gap: 10px; width: 100%; }
         .nav-btn:hover { background: #2a2a2a; color: #fff; }
         .nav-btn.active { background: var(--accent-green); color: #fff; }
@@ -43,7 +44,7 @@
         .sub-nav-btn { background: transparent; color: var(--text-muted); border: none; padding: 8px 10px; border-radius: 5px; cursor: pointer; text-align: left; font-size: 0.8rem; font-weight: bold; transition: background 0.2s, color 0.2s; display: flex; align-items: center; gap: 8px; width: 100%; }
         .sub-nav-btn img { width: 16px; height: 16px; object-fit: contain; }
         .sub-nav-btn:hover { background: #2a2a2a; color: #fff; }
-        .sub-nav-btn.active { background: var(--accent-blue); color: #fff; }
+        .sub-nav-btn.active { background: var(--accent-orange); color: #fff; }
 
         .nested-submenu { display: none; flex-direction: column; gap: 2px; padding-left: 20px; margin-top: 2px; }
         .nested-submenu.open { display: flex; }
@@ -51,8 +52,26 @@
         /* Main Content Area */
         .main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; padding: 15px; box-sizing: border-box; width: 100%; }
         
-        .main-header-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        .main-header-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; position: relative; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
         .main-header-bar h1 { font-size: 1.2rem; color: var(--accent-green); margin: 0; }
+
+        .auth-action-btn { background: #2c2c2c; color: var(--accent-orange); border: 1px solid var(--accent-orange); padding: 6px 12px; border-radius: 5px; font-weight: bold; font-size: 0.8rem; cursor: pointer; white-space: nowrap; transition: background 0.2s; }
+        .auth-action-btn:hover { background: #3c3c3c; color: #fff; }
+        
+        .header-auth-container { display: flex; align-items: center; gap: 8px; position: relative; }
+        .header-auth-profile { display: none; align-items: center; gap: 8px; background: #222; border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+        .header-auth-profile:hover { background: #2a2a2a; border-color: var(--accent-orange); }
+        .header-auth-profile img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+        .header-auth-profile span { font-size: 0.8rem; font-weight: bold; color: var(--text-main); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Top-Right Dropdown Menu */
+        .user-dropdown-menu { display: none; position: absolute; right: 0; top: 100%; margin-top: 6px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); width: 160px; z-index: 200; flex-direction: column; overflow: hidden; }
+        .user-dropdown-menu.open { display: flex; }
+        .dropdown-item { background: transparent; border: none; color: var(--text-main); padding: 10px 12px; font-size: 0.85rem; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; transition: background 0.2s; }
+        .dropdown-item:hover { background: #2a2a2a; color: #fff; }
+        .dropdown-item.danger { color: var(--neg-highlight); }
+        .dropdown-item.danger:hover { background: #2c1a1a; }
 
         .view-section { display: none; }
         .view-section.active { display: block; }
@@ -61,16 +80,21 @@
 
         /* Grid Layout */
         .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 8px; padding-top: 10px; }
-        .card { background: var(--bg-card); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.1s, border-color 0.2s; }
+        .card { background: var(--bg-card); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.1s, border-color 0.2s; position: relative; }
         .card:hover { border-color: var(--accent-green); transform: translateY(-2px); }
         .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .card-header img { width: 32px; height: 32px; object-fit: contain; }
-        .card-title { font-weight: bold; color: #fff; font-size: 0.85rem; line-height: 1.1; }
+        .card-title { font-weight: bold; color: #fff; font-size: 0.85rem; line-height: 1.1; flex-grow: 1; }
         .card-row { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px; }
         .card-row .label { color: var(--text-muted); }
         .card-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; font-size: 0.65rem; }
         .badge { padding: 3px 5px; border-radius: 4px; font-weight: bold; background: #181818; border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 3px; }
         .card-footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color); text-align: center; color: var(--accent-orange); font-weight: bold; font-size: 0.75rem; }
+
+        /* Favorite Star Button */
+        .fav-star-btn { background: transparent; border: none; cursor: pointer; font-size: 1.1rem; color: #555; padding: 2px; transition: color 0.2s, transform 0.1s; }
+        .fav-star-btn:hover { transform: scale(1.15); }
+        .fav-star-btn.active { color: #FFD700; }
 
         .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; align-items: center; }
         input, select { flex-grow: 1; min-width: 150px; padding: 9px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; font-size: 0.85rem; box-sizing: border-box; }
@@ -120,6 +144,11 @@
         .chart-container { position: relative; margin-bottom: 15px; height: 180px; width: 100%; }
         .loading-overlay { text-align: center; color: #ffa726; padding: 20px; font-size: 0.9rem; grid-column: 1 / -1; }
         .error-overlay { text-align: center; color: #FF5252; padding: 20px; font-size: 0.85rem; word-break: break-all; grid-column: 1 / -1; }
+
+        /* Password Strength Checklist */
+        .password-requirements { display: none; flex-direction: column; gap: 3px; font-size: 0.75rem; margin-top: 4px; background: #161616; padding: 8px; border-radius: 5px; border: 1px solid var(--border-color); }
+        .req-item { color: var(--neg-highlight); display: flex; align-items: center; gap: 6px; }
+        .req-item.met { color: var(--accent-green); }
     </style>
 </head>
 <body>
@@ -133,6 +162,7 @@
         <div class="sidebar-menu">
             <button class="nav-btn active" onclick="switchView('home', this)">🏠 Dashboard</button>
             <button class="nav-btn" onclick="switchView('flips', this)">📦 All Items</button>
+            <button class="nav-btn" onclick="switchView('favorites', this)">⭐ Favorites</button>
             <button class="nav-btn" onclick="switchView('alch', this)">🧙‍♂️ High Alch Hub</button>
             
             <!-- Production Hub with Popdown Submenus -->
@@ -176,10 +206,27 @@
     <!-- Main Content Panel -->
     <div class="main-content">
 
-        <!-- Top Header Bar with Menu Button and App Title -->
+        <!-- Top Header Bar with Menu Button, App Title, and Top-Right Auth Controls -->
         <div class="main-header-bar">
-            <button class="toggle-btn" onclick="toggleSidebar()" style="font-size: 1.3rem;">☰</button>
-            <h1>🪙 OSRS F2P Dashboard</h1>
+            <div class="header-left">
+                <button class="toggle-btn" onclick="toggleSidebar()" style="font-size: 1.3rem;">☰</button>
+                <h1>🪙 OSRS F2P Dashboard</h1>
+            </div>
+            <div class="header-auth-container">
+                <button class="auth-action-btn" id="authActionButton" onclick="openAuthModal()">Sign In</button>
+                
+                <!-- Logged-in Top-Right Profile Pill with Dropdown -->
+                <div class="header-auth-profile" id="headerAuthProfile" onclick="toggleUserDropdown(event)">
+                    <img id="headerAvatarImg" src="https://oldschool.runescape.wiki/images/Placeholder.png" alt="Avatar">
+                    <span id="headerUsernameLabel">Account</span>
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">▾</span>
+                </div>
+                
+                <div class="user-dropdown-menu" id="userDropdownMenu">
+                    <button class="dropdown-item" onclick="switchView('account'); closeUserDropdown();">👤 Account Page</button>
+                    <button class="dropdown-item danger" onclick="handleSignOut(); closeUserDropdown();">🚪 Sign Out</button>
+                </div>
+            </div>
         </div>
 
         <!-- HOME VIEW -->
@@ -221,6 +268,43 @@
             <div id="gridContainerEl" class="card-grid" style="display: none;"></div>
         </div>
 
+        <!-- FAVORITES VIEW -->
+        <div id="view-favorites" class="view-section">
+            <h2>⭐ Your Favorite Items</h2>
+            <div class="controls">
+                <input type="text" id="searchFavInput" onkeyup="filterAndSortData()" placeholder="Search favorites...">
+            </div>
+            <div id="favoritesGrid" class="card-grid"></div>
+        </div>
+
+        <!-- ACCOUNT PAGE VIEW -->
+        <div id="view-account" class="view-section">
+            <h2>👤 Account Settings</h2>
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; max-width: 450px; display: flex; flex-direction: column; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <img id="accountViewAvatar" src="https://oldschool.runescape.wiki/images/Placeholder.png" alt="Profile Picture" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-green);">
+                    <div>
+                        <h3 id="accountViewEmail" style="margin: 0; color: #fff; font-size: 1rem;">user@email.com</h3>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Manage your public profile information</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Display Username</label>
+                    <input type="text" id="accountUsernameInput" placeholder="Enter display username" style="width: 100%;">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 0.80rem; color: var(--text-muted);">Profile Picture URL</label>
+                    <input type="text" id="accountAvatarInput" placeholder="https://example.com/avatar.png" style="width: 100%;">
+                </div>
+
+                <div id="accountMessageStatus" style="font-size: 0.75rem; min-height: 16px;"></div>
+
+                <button class="auth-action-btn" onclick="saveAccountSettings()" style="padding: 10px; text-align: center; width: 100%;">Save Changes</button>
+            </div>
+        </div>
+
         <!-- HIGH ALCH HUB VIEW -->
         <div id="view-alch" class="view-section">
             <h2>High Alchemy Hub</h2>
@@ -255,14 +339,6 @@
                     <span style="color: var(--text-muted); font-weight: bold;">Runecrafting Level:</span>
                     <input type="number" id="rcPlayerLevel" value="1" min="1" max="99" onchange="filterAndSortData()" style="padding: 4px 8px; width: 60px; font-size: 0.85rem;">
                 </div>
-            </div>
-            <div class="controls" id="prodControlsContainer" style="margin-top: 8px;">
-                <input type="text" id="searchProdInput" onkeyup="filterAndSortData()" placeholder="Search recipe product...">
-            </div>
-            <div id="paginationProdControls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem;">
-                <button onclick="changePage(-1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Previous</button>
-                <span id="pageProdIndicator" style="color:#aaa; font-weight:bold;">Page 1 of 1</span>
-                <button onclick="changePage(1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Next</button>
             </div>
             <div class="table-container">
                 <table>
@@ -347,7 +423,44 @@
         </div>
     </div>
 
+    <!-- Auth Modal -->
+    <div id="authModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: left;">
+            <span class="close" onclick="closeAuthModal()">&times;</span>
+            <h3 id="authModalTitle" style="color: var(--accent-orange); margin-top: 0; text-align: center;">Account Login</h3>
+            
+            <form id="authForm" onsubmit="event.preventDefault(); handleAuthSubmit();" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                <label style="font-size: 0.8rem; color: var(--text-muted);" for="authEmailInput">Email Address</label>
+                <input type="email" id="authEmailInput" autocomplete="email" placeholder="Enter your email" style="width: 100%;" required>
+                
+                <label style="font-size: 0.8rem; color: var(--text-muted);" for="authPasswordInput">Password</label>
+                <input type="password" id="authPasswordInput" autocomplete="current-password" placeholder="Enter your password" oninput="checkPasswordStrength(this.value)" style="width: 100%;" required>
+                
+                <!-- Password Strength Checklist -->
+                <div id="passwordReqContainer" class="password-requirements">
+                    <div id="reqLength" class="req-item">❌ At least 8 characters</div>
+                    <div id="reqUpper" class="req-item">❌ One uppercase letter</div>
+                    <div id="reqNumber" class="req-item">❌ One number</div>
+                    <div id="reqSpecial" class="req-item">❌ One special character (!@#$%^&*)</div>
+                </div>
+
+                <div id="authMessageError" style="color: var(--neg-highlight); font-size: 0.75rem; min-height: 16px;"></div>
+
+                <button type="submit" class="auth-action-btn" id="authSubmitButton" style="padding: 10px; font-size: 0.9rem; margin-top: 5px; text-align: center; width: 100%;">Sign In</button>
+                
+                <div style="text-align: center; margin-top: 10px; font-size: 0.8rem;">
+                    <span id="authTogglePrompt" style="color: var(--text-muted);">Don't have an account?</span> 
+                    <span id="authToggleLink" onclick="toggleAuthMode()" style="color: var(--accent-orange); cursor: pointer; font-weight: bold;">Register</span>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
+        const SUPABASE_URL = "https://fiwkqhiqmijzovybvcfb.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_vXzzqegQXT7l3sF9geqqRQ_MDanTI9v";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
         const TURSO_URL = "https://osrsflips-soharuda.aws-us-east-2.turso.io/v2/pipeline";
         const TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicm8iLCJnaWQiOiJjZjYxMWNiOC1iZGQ3LTQ3ZTUtOTgzMy0wOTczNmMxNzZlYWMiLCJpYXQiOjE3ODg2NDk2OTcsImtpZCI6InVjeGlNN2w2emt3bnFqaGZJM3dxbDZQZHZnU2Zub29IVWFZWVZPelA4cmsiLCJyaWQiOiI3YmEyMGE1Yy0yNmQ5LTRhNjQtYTY3ZC03NGEyMWMyNzYwMGUifQ.NZ5KHbj3iNJhJ7mVHa1lkCglb9EJV7K1BrBpZYcEYtpnG0z137jQw1EwJcvX1BL2lkNYWz2AjBKHr4P80zdfDQ";
 
@@ -539,6 +652,10 @@
         let currentViewMode = localStorage.getItem('osrs_f2p_view') || 'grid';
         let homeDataCache = null;
         let activeModalItem = null;
+        let currentUser = null;
+        let isRegisterMode = false;
+        let userFavorites = JSON.parse(localStorage.getItem('osrs_f2p_favorites') || '[]');
+        let userProfile = JSON.parse(localStorage.getItem('osrs_f2p_profile') || '{"username": "", "avatar": ""}');
 
         const safeInt = (val) => {
             const parsed = parseInt(val);
@@ -558,6 +675,210 @@
             if (!rule) return 1;
             if (level < rule.base) return 1;
             return 1 + Math.floor((level - rule.base) / rule.interval);
+        }
+
+        async function initAuth() {
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session && session.user) {
+                    currentUser = session.user;
+                    updateAuthUI();
+                }
+                supabaseClient.auth.onAuthStateChange((event, session) => {
+                    currentUser = session ? session.user : null;
+                    updateAuthUI();
+                });
+            } catch (err) {
+                console.error("Auth init error:", err);
+            }
+        }
+
+        function updateAuthUI() {
+            const actionBtn = document.getElementById('authActionButton');
+            const profilePill = document.getElementById('headerAuthProfile');
+            const avatarImg = document.getElementById('headerAvatarImg');
+            const usernameLabel = document.getElementById('headerUsernameLabel');
+
+            if (currentUser) {
+                let displayTitle = userProfile.username || currentUser.email.split('@')[0];
+                let avatarUrl = userProfile.avatar || "https://oldschool.runescape.wiki/images/Placeholder.png";
+
+                actionBtn.style.display = 'none';
+                profilePill.style.display = 'flex';
+                avatarImg.src = avatarUrl;
+                usernameLabel.innerText = displayTitle;
+
+                document.getElementById('accountViewEmail').innerText = currentUser.email;
+                document.getElementById('accountUsernameInput').value = userProfile.username || "";
+                document.getElementById('accountAvatarInput').value = userProfile.avatar || "";
+                document.getElementById('accountViewAvatar').src = avatarUrl;
+            } else {
+                actionBtn.style.display = 'block';
+                profilePill.style.display = 'none';
+                closeUserDropdown();
+                if (currentView === 'account') switchView('home');
+            }
+        }
+
+        function toggleUserDropdown(event) {
+            if (event) event.stopPropagation();
+            const menu = document.getElementById('userDropdownMenu');
+            menu.classList.toggle('open');
+        }
+
+        function closeUserDropdown() {
+            document.getElementById('userDropdownMenu').classList.remove('open');
+        }
+
+        function saveAccountSettings() {
+            const newUsername = document.getElementById('accountUsernameInput').value.trim();
+            const newAvatar = document.getElementById('accountAvatarInput').value.trim();
+            const statusEl = document.getElementById('accountMessageStatus');
+
+            userProfile.username = newUsername;
+            userProfile.avatar = newAvatar;
+            localStorage.setItem('osrs_f2p_profile', JSON.stringify(userProfile));
+
+            updateAuthUI();
+            statusEl.style.color = "var(--accent-green)";
+            statusEl.innerText = "Profile updated successfully!";
+            setTimeout(() => { statusEl.innerText = ""; }, 3000);
+        }
+
+        function toggleFavorite(itemId, event) {
+            if (event) event.stopPropagation();
+            itemId = safeInt(itemId);
+            let idx = userFavorites.indexOf(itemId);
+            if (idx > -1) {
+                userFavorites.splice(idx, 1);
+            } else {
+                userFavorites.push(itemId);
+            }
+            localStorage.setItem('osrs_f2p_favorites', JSON.stringify(userFavorites));
+
+            if (currentView === 'favorites') {
+                loadMarketData().then(itemsMap => renderFavoritesView(itemsMap));
+            } else {
+                filterAndSortData();
+                if (currentView === 'home' && homeDataCache) {
+                    renderHomeView(homeDataCache);
+                }
+            }
+        }
+
+        function openAuthModal() {
+            if (currentUser) return;
+            isRegisterMode = false;
+            document.getElementById('authModalTitle').innerText = "Account Login";
+            document.getElementById('authSubmitButton').innerText = "Sign In";
+            document.getElementById('authTogglePrompt').innerText = "Don't have an account?";
+            document.getElementById('authToggleLink').innerText = "Register";
+            document.getElementById('authMessageError').innerText = "";
+            document.getElementById('authEmailInput').value = "";
+            document.getElementById('authPasswordInput').value = "";
+            document.getElementById('authPasswordInput').setAttribute('autocomplete', 'current-password');
+            document.getElementById('passwordReqContainer').style.display = 'none';
+            document.getElementById('authModal').style.display = "block";
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').style.display = "none";
+        }
+
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            const passInput = document.getElementById('authPasswordInput');
+            const reqContainer = document.getElementById('passwordReqContainer');
+
+            if (isRegisterMode) {
+                document.getElementById('authModalTitle').innerText = "Create Account";
+                document.getElementById('authSubmitButton').innerText = "Register";
+                document.getElementById('authTogglePrompt').innerText = "Already have an account?";
+                document.getElementById('authToggleLink').innerText = "Sign In";
+                passInput.setAttribute('autocomplete', 'new-password');
+                reqContainer.style.display = 'flex';
+                checkPasswordStrength(passInput.value);
+            } else {
+                document.getElementById('authModalTitle').innerText = "Account Login";
+                document.getElementById('authSubmitButton').innerText = "Sign In";
+                document.getElementById('authTogglePrompt').innerText = "Don't have an account?";
+                document.getElementById('authToggleLink').innerText = "Register";
+                passInput.setAttribute('autocomplete', 'current-password');
+                reqContainer.style.display = 'none';
+            }
+            document.getElementById('authMessageError').innerText = "";
+        }
+
+        function checkPasswordStrength(password) {
+            if (!isRegisterMode) return;
+
+            const hasLength = password.length >= 8;
+            const hasUpper = /[A-Z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
+            const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+            updateReqItem('reqLength', hasLength, 'At least 8 characters');
+            updateReqItem('reqUpper', hasUpper, 'One uppercase letter');
+            updateReqItem('reqNumber', hasNumber, 'One number');
+            updateReqItem('reqSpecial', hasSpecial, 'One special character (!@#$%^&*)');
+        }
+
+        function updateReqItem(elementId, isMet, text) {
+            const el = document.getElementById(elementId);
+            if (isMet) {
+                el.className = "req-item met";
+                el.innerText = `✔️ ${text}`;
+            } else {
+                el.className = "req-item";
+                el.innerText = `❌ ${text}`;
+            }
+        }
+
+        async function handleAuthSubmit() {
+            const email = document.getElementById('authEmailInput').value.trim();
+            const password = document.getElementById('authPasswordInput').value;
+            const errorEl = document.getElementById('authMessageError');
+            errorEl.innerText = "";
+
+            if (!email || !password) {
+                errorEl.innerText = "Please fill in all fields.";
+                return;
+            }
+
+            if (isRegisterMode) {
+                const hasLength = password.length >= 8;
+                const hasUpper = /[A-Z]/.test(password);
+                const hasNumber = /[0-9]/.test(password);
+                const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+                if (!hasLength || !hasUpper || !hasNumber || !hasSpecial) {
+                    errorEl.innerText = "Please meet all password requirements.";
+                    return;
+                }
+            }
+
+            try {
+                if (isRegisterMode) {
+                    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                    if (error) throw error;
+                    alert("Registration successful! You are now logged in.");
+                    closeAuthModal();
+                } else {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                    closeAuthModal();
+                }
+            } catch (err) {
+                errorEl.innerText = err.message || "Authentication failed.";
+            }
+        }
+
+        async function handleSignOut() {
+            try {
+                await supabaseClient.auth.signOut();
+            } catch (err) {
+                console.error("Sign out error:", err);
+            }
         }
 
         function toggleSidebar() {
@@ -804,6 +1125,7 @@
 
         async function initDashboard() {
             updateViewToggleButton();
+            initAuth();
             try {
                 let itemsMap = await loadMarketData();
                 renderHomeView(Object.values(itemsMap));
@@ -834,17 +1156,20 @@
             document.getElementById('view-' + viewName).classList.add('active');
 
             document.getElementById('sidebar').classList.remove('open');
+            closeUserDropdown();
 
             if (viewName === 'home') {
                 loadMarketData().then(itemsMap => renderHomeView(Object.values(itemsMap)));
             } else if (viewName === 'flips') {
                 sortField = "volume"; sortAsc = false;
                 document.getElementById('tableHeaders').innerHTML = `
-                    <th>Icon</th><th onclick="toggleSort('name')">Item ↕</th><th onclick="toggleSort('buy')">Buy ↕</th><th onclick="toggleSort('sell')">Sell ↕</th>
+                    <th>⭐</th><th>Icon</th><th onclick="toggleSort('name')">Item ↕</th><th onclick="toggleSort('buy')">Buy ↕</th><th onclick="toggleSort('sell')">Sell ↕</th>
                     <th onclick="toggleSort('tax')">Tax ↕</th><th onclick="toggleSort('margin')">Profit ↕</th><th onclick="toggleSort('trend')">24h Trend ↕</th>
                     <th onclick="toggleSort('aiScore')">AI Confidence ↕</th><th onclick="toggleSort('volume')">Volume ↕</th><th onclick="toggleSort('limit')">Limit ↕</th>
                 `;
                 filterAndSortData();
+            } else if (viewName === 'favorites') {
+                loadMarketData().then(itemsMap => renderFavoritesView(itemsMap));
             } else if (viewName === 'alch') {
                 sortField = "alch_profit"; sortAsc = false;
                 filterAndSortData();
@@ -865,7 +1190,6 @@
             document.getElementById('view-production').classList.add('active');
 
             let titleName = "Production & Crafting Hub";
-            let searchInputContainer = document.getElementById('prodControlsContainer');
             let rcConfigEl = document.getElementById('rcLevelConfigContainer');
 
             if (filter.startsWith('crafting_')) titleName = "Crafting Hub (" + filter.replace('crafting_', '').toUpperCase() + ")";
@@ -875,16 +1199,14 @@
             
             document.getElementById('productionTitle').innerText = titleName;
 
-            // Handle visibility for runecrafting controls (hide search bar, show RC level input)
             if (category === 'runecrafting') {
-                searchInputContainer.style.display = 'none';
                 rcConfigEl.style.display = 'flex';
             } else {
-                searchInputContainer.style.display = 'flex';
                 rcConfigEl.style.display = 'none';
             }
 
             document.getElementById('sidebar').classList.remove('open');
+            closeUserDropdown();
             sortField = "level"; sortAsc = false;
             filterAndSortData();
         }
@@ -924,9 +1246,11 @@
                 let cap = item.limit > 0 ? Math.min(item.limit, item.volume / 6) : (item.volume / 6);
                 let potProfit = Math.floor(item.margin * cap);
                 let timeLabel = "Est 4h Profit";
+                let isFav = userFavorites.includes(item.id);
 
                 div.innerHTML = `
                     <div class="card-header">
+                        <button class="fav-star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite(${item.id}, event)">${isFav ? '★' : '☆'}</button>
                         <img src="${item.icon}" loading="lazy" alt="Item Icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'">
                         <div class="card-title">${idx + 1}. ${item.name}</div>
                     </div>
@@ -942,6 +1266,47 @@
                     </div>
                 `;
                 container.appendChild(div);
+            });
+        }
+
+        async function renderFavoritesView(itemsMap) {
+            const grid = document.getElementById('favoritesGrid');
+            let query = document.getElementById('searchFavInput')?.value?.toUpperCase() || "";
+
+            let favItems = userFavorites.map(id => itemsMap[id]).filter(item => item !== undefined);
+            if (query !== "") {
+                favItems = favItems.filter(item => item.name.toUpperCase().includes(query));
+            }
+
+            if (!favItems.length) {
+                grid.innerHTML = `<div class="loading-overlay" style="grid-column: 1 / -1;">No favorite items added yet. Click the star icon on any item to save it here!</div>`;
+                return;
+            }
+
+            grid.innerHTML = "";
+            favItems.forEach(item => {
+                let div = document.createElement('div');
+                div.className = "card";
+                div.onclick = () => openGraph(item);
+                let isFav = true;
+
+                div.innerHTML = `
+                    <div class="card-header">
+                        <button class="fav-star-btn active" onclick="toggleFavorite(${item.id}, event)">★</button>
+                        <img src="${item.icon}" loading="lazy" alt="icon">
+                        <div class="card-title">${item.name}</div>
+                    </div>
+                    <div style="width: 100%;">
+                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${item.buy.toLocaleString()} / ${item.sell.toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Margin:</span><span class="${item.margin > 0 ? 'highlight' : 'neg-highlight'}">+${item.margin.toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${item.volume.toLocaleString()} / ${item.limit.toLocaleString()}</span></div>
+                        <div class="card-badges">
+                            <span class="badge ${item.trendClass}">${item.trendIcon} ${item.trend}</span>
+                            <span class="badge ${item.dataRatingClass}">Data: ${item.dataRatingText}</span>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(div);
             });
         }
 
@@ -971,9 +1336,6 @@
 
                 if (currentView === 'production') {
                     sourceData = await getCalculatedRecipes();
-                    if (currentProductionCategory !== 'runecrafting') {
-                        query = document.getElementById('searchProdInput').value.toUpperCase();
-                    }
                 } else if (currentView === 'alch') {
                     let itemsMap = await loadMarketData();
                     sourceData = Object.values(itemsMap).filter(x => x.alch_value > 0);
@@ -982,21 +1344,25 @@
                     let itemsMap = await loadMarketData();
                     sourceData = Object.values(itemsMap);
                     query = document.getElementById('searchFlipsInput').value.toUpperCase();
+                } else if (currentView === 'favorites') {
+                    let itemsMap = await loadMarketData();
+                    renderFavoritesView(itemsMap);
+                    return;
                 }
 
                 let filtered = sourceData.filter(item => {
                     let matchesSearch = query === "" || item.name.toUpperCase().includes(query);
                     if (currentView === 'production') {
                         if (currentProductionCategory === 'smithing') {
-                            if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('smithing_');
-                            return matchesSearch && (item.type === currentSubFilter);
+                            if (currentSubFilter === 'all') return item.type.startsWith('smithing_');
+                            return (item.type === currentSubFilter);
                         } else if (currentProductionCategory === 'crafting') {
-                            if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('crafting_');
-                            return matchesSearch && (item.type === currentSubFilter);
+                            if (currentSubFilter === 'all') return item.type.startsWith('crafting_');
+                            return (item.type === currentSubFilter);
                         } else if (currentProductionCategory === 'cooking') { 
-                            return matchesSearch && (item.type === 'cooking'); 
+                            return (item.type === 'cooking'); 
                         } else if (currentProductionCategory === 'runecrafting') {
-                            return matchesSearch && (item.type === 'runecrafting');
+                            return (item.type === 'runecrafting');
                         }
                     }
                     return matchesSearch;
@@ -1032,7 +1398,6 @@
                     document.getElementById('pageAlchIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
                     renderAlchTable(paginatedData);
                 } else if (currentView === 'production') {
-                    document.getElementById('pageProdIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
                     renderProductionTable(paginatedData);
                 }
             } catch (err) { console.error("Filtering error:", err); }
@@ -1046,7 +1411,10 @@
                 let tr = document.createElement('tr');
                 tr.onclick = () => openGraph(item);
                 let marginSign = item.margin > 0 ? "+" : "";
+                let isFav = userFavorites.includes(item.id);
+
                 tr.innerHTML = `
+                    <td onclick="event.stopPropagation();"><button class="fav-star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite(${item.id}, event)">${isFav ? '★' : '☆'}</button></td>
                     <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon"></td>
                     <td><b>${item.name}</b></td><td>${item.buy.toLocaleString()}</td><td>${item.sell.toLocaleString()}</td>
                     <td class="tax-text">${item.tax > 0 ? '-' + item.tax.toLocaleString() : '0'}</td><td class="${item.margin > 0 ? 'highlight' : 'neg-highlight'}">${marginSign}${item.margin.toLocaleString()}</td>
@@ -1105,8 +1473,14 @@
                 let div = document.createElement('div');
                 div.className = "card";
                 div.onclick = () => openGraph(item);
+                let isFav = userFavorites.includes(item.id);
+
                 div.innerHTML = `
-                    <div class="card-header"><img src="${item.icon}" loading="lazy" alt="icon"><div class="card-title">${item.name}</div></div>
+                    <div class="card-header">
+                        <button class="fav-star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite(${item.id}, event)">${isFav ? '★' : '☆'}</button>
+                        <img src="${item.icon}" loading="lazy" alt="icon">
+                        <div class="card-title">${item.name}</div>
+                    </div>
                     <div style="width: 100%;">
                         <div class="card-row"><span class="label">Buy / Sell:</span><span>${item.buy.toLocaleString()} / ${item.sell.toLocaleString()}</span></div>
                         <div class="card-row"><span class="label">Margin:</span><span class="${item.margin > 0 ? 'highlight' : 'neg-highlight'}">+${item.margin.toLocaleString()} gp</span></div>
@@ -1247,7 +1621,11 @@
         }
 
         function closeGraph() { document.getElementById('chartModal').style.display = "none"; }
-        window.onclick = function(event) { if (event.target == document.getElementById('chartModal')) document.getElementById('chartModal').style.display = "none"; }
+        window.onclick = function(event) { 
+            if (event.target == document.getElementById('chartModal')) document.getElementById('chartModal').style.display = "none";
+            if (event.target == document.getElementById('authModal')) closeAuthModal();
+            closeUserDropdown();
+        }
 
         let resizeTimer;
         window.addEventListener('resize', () => {
