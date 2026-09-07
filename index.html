@@ -36,6 +36,7 @@
         .nav-btn { background: transparent; color: var(--text-muted); border: none; padding: 10px 12px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 0.9rem; font-weight: bold; transition: background 0.2s, color 0.2s; display: flex; align-items: center; gap: 10px; width: 100%; }
         .nav-btn:hover { background: #2a2a2a; color: #fff; }
         .nav-btn.active { background: var(--accent-green); color: #fff; }
+        .nav-btn.hidden-nav { display: none !important; }
 
         /* Sidebar Submenu Dropdown for Production */
         .nav-dropdown-container { display: flex; flex-direction: column; }
@@ -146,6 +147,13 @@
         .loading-overlay { text-align: center; color: #ffa726; padding: 20px; font-size: 0.9rem; grid-column: 1 / -1; }
         .error-overlay { text-align: center; color: #FF5252; padding: 20px; font-size: 0.85rem; word-break: break-all; grid-column: 1 / -1; }
 
+        /* Collapsible Accordion Box for Suggestions */
+        .collapsible-box { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 15px; overflow: hidden; }
+        .collapsible-header { background: #222; color: var(--accent-orange); padding: 12px 15px; font-size: 0.9rem; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+        .collapsible-header:hover { background: #282828; }
+        .collapsible-content { padding: 12px; display: none; }
+        .collapsible-content.open { display: block; }
+
         /* Custom Searchable Dropdown Layout Fixes */
         .gains-form-grid { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 12px; align-items: flex-end; }
         @media (max-width: 768px) {
@@ -176,8 +184,8 @@
         <div class="sidebar-menu">
             <button class="nav-btn active" onclick="switchView('home', this)">🏠 Dashboard</button>
             <button class="nav-btn" onclick="switchView('flips', this)">📦 All Items</button>
-            <button class="nav-btn" onclick="switchView('favorites', this)">⭐ Favorites</button>
-            <button class="nav-btn" onclick="switchView('gains', this)">📈 Gains Tracker</button>
+            <button class="nav-btn hidden-nav" id="navFavoritesBtn" onclick="switchView('favorites', this)">⭐ Favorites</button>
+            <button class="nav-btn hidden-nav" id="navGainsBtn" onclick="switchView('gains', this)">📈 Gains Tracker</button>
             <button class="nav-btn" onclick="switchView('alch', this)">🧙‍♂️ High Alch Hub</button>
             
             <!-- Production Hub with Popdown Submenus -->
@@ -246,9 +254,34 @@
 
         <!-- HOME VIEW -->
         <div id="view-home" class="view-section active">
-            <h2 id="recSummary">⚡ Top Recommended Flips</h2>
-            <div id="recContainer" class="card-grid">
-                <div class="loading-overlay">Loading market data...</div>
+            <!-- General Net Profit Header Card & Performance Chart -->
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Total Tracked Net Profit</span>
+                    <span id="homeTotalProfitDisplay" class="highlight" style="font-size: 1.5rem; font-weight: bold;">0 gp</span>
+                </div>
+                <div style="flex: 1; min-width: 250px; max-width: 400px; height: 60px; position: relative;">
+                    <canvas id="homeMiniPerformanceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Top 2 Profit Favorites Section (Visible only when signed in and favorites exist) -->
+            <div id="homeFavoritesSection" style="display: none; margin-bottom: 15px;">
+                <h2 style="font-size: 1rem; color: var(--accent-green); margin-bottom: 8px;">⭐ Top Favorite Profit Opportunities</h2>
+                <div id="homeFavoritesContainer" class="card-grid" style="padding-top: 0;"></div>
+            </div>
+
+            <!-- Collapsible Top Recommendations Section (Default Closed) -->
+            <div class="collapsible-box">
+                <div class="collapsible-header" onclick="toggleCollapsibleBox()">
+                    <span id="recSummary">⚡ Top Recommended Flips</span>
+                    <span id="collapsibleArrow">▼</span>
+                </div>
+                <div class="collapsible-content" id="collapsibleContent">
+                    <div id="recContainer" class="card-grid" style="padding-top: 0;">
+                        <div class="loading-overlay">Loading market data...</div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -736,6 +769,7 @@
         let priceChartObj = null;
         let volumeChartObj = null;
         let gainsChartObj = null;
+        let homeMiniChartObj = null;
         let currentItemId = null;
         
         let currentView = "home";
@@ -822,6 +856,8 @@
             const profilePill = document.getElementById('headerAuthProfile');
             const avatarImg = document.getElementById('headerAvatarImg');
             const usernameLabel = document.getElementById('headerUsernameLabel');
+            const navFavoritesBtn = document.getElementById('navFavoritesBtn');
+            const navGainsBtn = document.getElementById('navGainsBtn');
 
             if (currentUser) {
                 let displayTitle = userProfile.username || currentUser.email.split('@')[0];
@@ -832,15 +868,30 @@
                 avatarImg.src = avatarUrl;
                 usernameLabel.innerText = displayTitle;
 
+                navFavoritesBtn.classList.remove('hidden-nav');
+                navGainsBtn.classList.remove('hidden-nav');
+
                 document.getElementById('accountViewEmail').innerText = currentUser.email;
                 document.getElementById('accountUsernameInput').value = userProfile.username || "";
                 document.getElementById('accountAvatarInput').value = userProfile.avatar || "";
                 document.getElementById('accountViewAvatar').src = avatarUrl;
+
+                if (Object.keys(cachedItemsMap).length > 0) {
+                    renderHomeFavoritesSection(cachedItemsMap);
+                }
             } else {
                 actionBtn.style.display = 'block';
                 profilePill.style.display = 'none';
                 closeUserDropdown();
-                if (currentView === 'account') switchView('home');
+
+                navFavoritesBtn.classList.add('hidden-nav');
+                navGainsBtn.classList.add('hidden-nav');
+
+                document.getElementById('homeFavoritesSection').style.display = 'none';
+
+                if (currentView === 'account' || currentView === 'favorites' || currentView === 'gains') {
+                    switchView('home');
+                }
             }
         }
 
@@ -894,6 +945,7 @@
                 filterAndSortData();
                 if (currentView === 'home' && homeDataCache) {
                     renderHomeView(homeDataCache);
+                    renderHomeFavoritesSection(cachedItemsMap);
                 }
             }
         }
@@ -932,12 +984,14 @@
             userGainsHistory.unshift(entry);
             localStorage.setItem('osrs_f2p_gains', JSON.stringify(userGainsHistory));
             renderGainsView();
+            updateHomeHeaderStats();
         }
 
         function deleteGainsEntry(entryId) {
             userGainsHistory = userGainsHistory.filter(e => e.id !== entryId);
             localStorage.setItem('osrs_f2p_gains', JSON.stringify(userGainsHistory));
             renderGainsView();
+            updateHomeHeaderStats();
         }
 
         function clearGainsHistory() {
@@ -945,7 +999,114 @@
                 userGainsHistory = [];
                 localStorage.setItem('osrs_f2p_gains', JSON.stringify(userGainsHistory));
                 renderGainsView();
+                updateHomeHeaderStats();
             }
+        }
+
+        function updateHomeHeaderStats() {
+            const totalProfitEl = document.getElementById('homeTotalProfitDisplay');
+            let totalProfit = userGainsHistory.reduce((sum, entry) => sum + entry.profit, 0);
+            if (totalProfitEl) {
+                totalProfitEl.innerText = (totalProfit >= 0 ? "+" : "") + totalProfit.toLocaleString() + " gp";
+                totalProfitEl.className = totalProfit >= 0 ? "highlight" : "neg-highlight";
+            }
+            renderHomeMiniChart();
+        }
+
+        function renderHomeMiniChart() {
+            const ctx = document.getElementById('homeMiniPerformanceChart');
+            if (!ctx) return;
+            if (homeMiniChartObj) homeMiniChartObj.destroy();
+
+            let chronological = [...userGainsHistory].reverse();
+            let labels = [];
+            let cumulativeData = [];
+            let runningSum = 0;
+
+            if (chronological.length === 0) {
+                labels = ["Start"];
+                cumulativeData = [0];
+            } else {
+                chronological.forEach((entry, idx) => {
+                    runningSum += entry.profit;
+                    labels.push(`#${idx + 1}`);
+                    cumulativeData.push(runningSum);
+                });
+            }
+
+            homeMiniChartObj = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: cumulativeData,
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        pointRadius: 0,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
+        }
+
+        function renderHomeFavoritesSection(itemsMap) {
+            const section = document.getElementById('homeFavoritesSection');
+            const container = document.getElementById('homeFavoritesContainer');
+            if (!currentUser || userFavorites.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            let favItems = userFavorites.map(id => itemsMap[id]).filter(item => item !== undefined);
+            if (favItems.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            // Sort by highest margin/profit
+            favItems.sort((a, b) => b.margin - a.margin);
+            let topTwo = favItems.slice(0, 2);
+
+            container.innerHTML = "";
+            topTwo.forEach(item => {
+                let div = document.createElement('div');
+                div.className = "card";
+                div.onclick = () => openGraph(item);
+                let isFav = true;
+
+                div.innerHTML = `
+                    <div class="card-header">
+                        <button class="fav-star-btn active" onclick="toggleFavorite(${item.id}, event)">★</button>
+                        <img src="${item.icon}" loading="lazy" alt="icon">
+                        <div class="card-title">${item.name}</div>
+                    </div>
+                    <div style="width: 100%;">
+                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${item.buy.toLocaleString()} / ${item.sell.toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Margin:</span><span class="${item.margin > 0 ? 'highlight' : 'neg-highlight'}">+${item.margin.toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${item.volume.toLocaleString()} / ${item.limit.toLocaleString()}</span></div>
+                        <div class="card-badges">
+                            <span class="badge ${item.trendClass}">${item.trendIcon} ${item.trend}</span>
+                            <span class="badge ${item.dataRatingClass}">Data: ${item.dataRatingText}</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            section.style.display = 'block';
         }
 
         function renderGainsView() {
@@ -1262,6 +1423,13 @@
             element.classList.toggle('open');
         }
 
+        function toggleCollapsibleBox() {
+            const content = document.getElementById('collapsibleContent');
+            const arrow = document.getElementById('collapsibleArrow');
+            content.classList.toggle('open');
+            arrow.innerText = content.classList.contains('open') ? '▲' : '▼';
+        }
+
         function getOptimalItemCount() {
             let containerWidth = document.body.clientWidth - 40; 
             let cols = Math.floor((containerWidth + 8) / 173);
@@ -1487,9 +1655,11 @@
         async function initDashboard() {
             updateViewToggleButton();
             initAuth();
+            updateHomeHeaderStats();
             try {
                 let itemsMap = await loadMarketData();
                 renderHomeView(Object.values(itemsMap));
+                renderHomeFavoritesSection(itemsMap);
             } catch (err) {
                 document.getElementById('recContainer').innerHTML = `<div class="error-overlay">❌ Initialization Failed: ${err.message}</div>`;
             }
@@ -1508,6 +1678,12 @@
         }
 
         function switchView(viewName, btn) {
+            if ((viewName === 'favorites' || viewName === 'gains') && !currentUser) {
+                alert("Please sign in to access this view.");
+                openAuthModal();
+                return;
+            }
+
             currentView = viewName;
             currentPage = 1;
             document.querySelectorAll('.sidebar-menu .nav-btn').forEach(b => b.classList.remove('active'));
@@ -1525,7 +1701,11 @@
             closeUserDropdown();
 
             if (viewName === 'home') {
-                loadMarketData().then(itemsMap => renderHomeView(Object.values(itemsMap)));
+                loadMarketData().then(itemsMap => {
+                    renderHomeView(Object.values(itemsMap));
+                    renderHomeFavoritesSection(itemsMap);
+                    updateHomeHeaderStats();
+                });
             } else if (viewName === 'flips') {
                 sortField = "volume"; sortAsc = false;
                 document.getElementById('tableHeaders').innerHTML = `
