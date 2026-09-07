@@ -540,6 +540,19 @@
         </div>
     </div>
 
+    <!-- Set New Password Modal (Triggered on Recovery Link Click) -->
+    <div id="resetPasswordModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: left;">
+            <h3 style="color: var(--accent-orange); margin-top: 0; text-align: center;">Set New Password</h3>
+            <form id="updatePasswordForm" onsubmit="event.preventDefault(); handleNewPasswordSubmit();" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                <label style="font-size: 0.8rem; color: var(--text-muted);" for="newPasswordInput">New Password</label>
+                <input type="password" id="newPasswordInput" placeholder="Enter new password" style="width: 100%;" required>
+                <div id="updatePassError" style="color: var(--neg-highlight); font-size: 0.75rem; min-height: 16px;"></div>
+                <button type="submit" class="auth-action-btn" style="padding: 10px; font-size: 0.9rem; text-align: center; width: 100%;">Update Password</button>
+            </form>
+        </div>
+    </div>
+
     <script>
         const SUPABASE_URL = "https://fiwkqhiqmijzovybvcfb.supabase.co";
         const SUPABASE_KEY = "sb_publishable_vXzzqegQXT7l3sF9geqqRQ_MDanTI9v";
@@ -774,9 +787,33 @@
                 supabaseClient.auth.onAuthStateChange((event, session) => {
                     currentUser = session ? session.user : null;
                     updateAuthUI();
+
+                    if (event === "PASSWORD_RECOVERY") {
+                        document.getElementById('resetPasswordModal').style.display = 'block';
+                    }
                 });
             } catch (err) {
                 console.error("Auth init error:", err);
+            }
+        }
+
+        async function handleNewPasswordSubmit() {
+            const password = document.getElementById('newPasswordInput').value;
+            const errorEl = document.getElementById('updatePassError');
+            errorEl.innerText = "";
+
+            if (!password || password.length < 8) {
+                errorEl.innerText = "Password must be at least 8 characters.";
+                return;
+            }
+
+            const { error } = await supabaseClient.auth.updateUser({ password });
+            if (error) {
+                errorEl.innerText = error.message;
+            } else {
+                alert("Password updated successfully!");
+                document.getElementById('resetPasswordModal').style.display = 'none';
+                window.location.href = window.location.pathname;
             }
         }
 
@@ -1153,7 +1190,7 @@
             try {
                 if (isForgotPasswordMode) {
                     const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                        redirectTo: window.location.href,
+                        redirectTo: window.location.origin + window.location.pathname,
                     });
                     if (error) throw error;
                     alert("Password recovery email sent! Check your inbox for the reset link.");
@@ -1177,9 +1214,15 @@
                         return;
                     }
 
-                    const { error } = await supabaseClient.auth.signUp({ email, password });
+                    const { error } = await supabaseClient.auth.signUp({ 
+                        email, 
+                        password,
+                        options: {
+                            emailRedirectTo: window.location.origin + window.location.pathname
+                        }
+                    });
                     if (error) throw error;
-                    alert("Registration successful! You are now logged in.");
+                    alert("Registration successful! Check your email to verify your account.");
                     closeAuthModal();
                 } else {
                     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
@@ -1951,6 +1994,7 @@
         window.onclick = function(event) { 
             if (event.target == document.getElementById('chartModal')) document.getElementById('chartModal').style.display = "none";
             if (event.target == document.getElementById('authModal')) closeAuthModal();
+            if (event.target == document.getElementById('resetPasswordModal')) document.getElementById('resetPasswordModal').style.display = "none";
             if (!document.getElementById('searchableSelectWrapper').contains(event.target)) {
                 document.getElementById('gainsDropdownList').classList.remove('open');
             }
