@@ -155,7 +155,7 @@
         .collapsible-content.open { display: block; }
 
         /* Custom Searchable Dropdown Layout Fixes */
-        .gains-form-grid { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 12px; align-items: flex-end; }
+        .gains-form-grid { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 12px; align-items: flex-end; }
         @media (max-width: 768px) {
             .gains-form-grid { grid-template-columns: 1fr; }
         }
@@ -327,63 +327,92 @@
 
         <!-- GAINS TRACKER VIEW -->
         <div id="view-gains" class="view-section">
-            <h2>📈 Gains Tracker - Completed Flips</h2>
+            <h2>📈 Gains Tracker - Purchases & Sales</h2>
             
-            <div class="gains-form-grid">
-                <!-- Searchable Dropdown Custom Component -->
+            <!-- Mode Switcher Tabs for Purchase / Sale -->
+            <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+                <button id="gainsTabBuyBtn" class="auth-action-btn" onclick="switchGainsTab('buy')" style="background: var(--accent-green); color: #fff; border-color: var(--accent-green);">🛒 Log Purchase</button>
+                <button id="gainsTabSellBtn" class="auth-action-btn" onclick="switchGainsTab('sell')" style="background: #2c2c2c; color: var(--text-muted); border-color: #444;">💰 Log Sale</button>
+            </div>
+
+            <!-- Purchase Form -->
+            <div id="gainsBuyFormContainer" class="gains-form-grid">
                 <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
-                    <label style="font-size: 0.75rem; color: var(--text-muted);">Select Completed Item</label>
-                    <div class="searchable-select-wrapper" id="searchableSelectWrapper">
-                        <input type="text" id="gainsItemSearchInput" class="searchable-select-input" placeholder="Type to search item..." autocomplete="off" oninput="filterGainsDropdown()" onfocus="openGainsDropdown()">
-                        <div id="gainsDropdownList" class="searchable-dropdown-list"></div>
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">Select Item to Purchase</label>
+                    <div class="searchable-select-wrapper" id="searchableSelectWrapperBuy">
+                        <input type="text" id="gainsItemSearchInputBuy" class="searchable-select-input" placeholder="Type to search item..." autocomplete="off" oninput="filterGainsDropdown('buy')" onfocus="openGainsDropdown('buy')">
+                        <div id="gainsDropdownListBuy" class="searchable-dropdown-list"></div>
                     </div>
-                    <input type="hidden" id="gainsSelectedItemId" value="">
+                    <input type="hidden" id="gainsSelectedItemIdBuy" value="">
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
-                    <label style="font-size: 0.75rem; color: var(--text-muted);">Quantity</label>
-                    <input type="number" id="gainsQtyInput" value="1" min="1" style="padding: 9px; width: 100%; box-sizing: border-box;">
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">Quantity Purchased</label>
+                    <input type="number" id="gainsQtyInputBuy" value="1" min="1" style="padding: 9px; width: 100%; box-sizing: border-box;">
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
                     <label style="font-size: 0.75rem; color: var(--text-muted);">Buy Price (Each)</label>
-                    <input type="number" id="gainsBuyInput" placeholder="0" style="padding: 9px; width: 100%; box-sizing: border-box;">
+                    <input type="number" id="gainsBuyInputPrice" placeholder="0" style="padding: 9px; width: 100%; box-sizing: border-box;">
+                </div>
+                <button class="auth-action-btn" onclick="logPurchaseEntry()" style="padding: 10px 16px; height: 41px; width: 100%; background: var(--accent-green); border-color: var(--accent-green); color: #fff;">Save Purchase</button>
+            </div>
+
+            <!-- Sale Form (Hidden by Default) -->
+            <div id="gainsSellFormContainer" class="gains-form-grid" style="display: none;">
+                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">Select Item Sold</label>
+                    <div class="searchable-select-wrapper" id="searchableSelectWrapperSell">
+                        <input type="text" id="gainsItemSearchInputSell" class="searchable-select-input" placeholder="Type to search item..." autocomplete="off" oninput="filterGainsDropdown('sell')" onfocus="openGainsDropdown('sell')">
+                        <div id="gainsDropdownListSell" class="searchable-dropdown-list"></div>
+                    </div>
+                    <input type="hidden" id="gainsSelectedItemIdSell" value="">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">Quantity Sold</label>
+                    <input type="number" id="gainsQtyInputSell" value="1" min="1" style="padding: 9px; width: 100%; box-sizing: border-box;">
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
                     <label style="font-size: 0.75rem; color: var(--text-muted);">Sell Price (Each)</label>
-                    <input type="number" id="gainsSellInput" placeholder="0" style="padding: 9px; width: 100%; box-sizing: border-box;">
+                    <input type="number" id="gainsSellInputPrice" placeholder="0" style="padding: 9px; width: 100%; box-sizing: border-box;">
                 </div>
-                <button class="auth-action-btn" onclick="logCompletedFlip()" style="padding: 10px 16px; height: 41px; width: 100%;">Log Flip</button>
+                <button class="auth-action-btn" onclick="logSaleEntry()" style="padding: 10px 16px; height: 41px; width: 100%; background: var(--accent-orange); border-color: var(--accent-orange); color: #fff;">Save Sale</button>
             </div>
 
-            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
                 <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 20px; flex: 1; min-width: 160px;">
-                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Total Net Profit</span>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Total Net Realized Profit</span>
                     <span id="gainsTotalProfit" class="highlight" style="font-size: 1.2rem;">0 gp</span>
                 </div>
                 <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 20px; flex: 1; min-width: 160px;">
-                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Total Flips Tracked</span>
-                    <span id="gainsTotalCount" style="font-size: 1.2rem; color: #fff; font-weight: bold;">0</span>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Active Purchases Tracked</span>
+                    <span id="gainsTotalPurchasesCount" style="font-size: 1.2rem; color: #fff; font-weight: bold;">0</span>
                 </div>
-                <button onclick="clearGainsHistory()" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold;">Clear History</button>
+                <button onclick="clearGainsHistory()" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold;">Clear All History</button>
             </div>
 
             <!-- Gains Performance Line Chart -->
             <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-                <span style="font-size: 0.85rem; color: var(--accent-orange); font-weight: bold; display: block; margin-bottom: 8px;">Cumulative Net Profit Over Time</span>
+                <span style="font-size: 0.85rem; color: var(--accent-orange); font-weight: bold; display: block; margin-bottom: 8px;">Cumulative Realized Profit Over Time</span>
                 <div style="position: relative; height: 160px; width: 100%;">
                     <canvas id="gainsPerformanceChart"></canvas>
                 </div>
             </div>
 
+            <!-- Sub-tabs for Tables: Purchases vs Completed Sales History -->
+            <div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
+                <h3 id="gainsTableTitle" style="margin: 0; font-size: 1rem; color: var(--text-main);">Active Purchases / Inventory</h3>
+            </div>
+
             <div class="table-container">
-                <table>
+                <table id="gainsActiveTable">
                     <thead>
-                        <tr>
-                            <th>Icon</th><th>Item Name</th><th>Quantity</th><th>Buy Price</th><th>Sell Price</th><th>Net Profit</th><th>Date Logged</th><th>Action</th>
+                        <tr id="gainsTableHeaders">
+                            <th>Icon</th><th>Item Name</th><th>Quantity</th><th>Buy Price (Ea)</th><th>Total Invested</th><th>Date Purchased</th><th>Action</th>
                         </tr>
                     </thead>
                     <tbody id="gainsTableBody">
-                        <tr><td colspan="8" class="loading-overlay">No completed flips logged yet.</td></tr>
+                        <tr><td colspan="7" class="loading-overlay">No active purchases logged yet.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -790,7 +819,9 @@
 
         let userFavorites = [];
         let userProfile = { username: "", avatar: "" };
-        let userGainsHistory = [];
+        let userPurchasesHistory = [];
+        let userSalesHistory = [];
+        let activeGainsTab = 'buy';
 
         const safeInt = (val) => {
             const parsed = parseInt(val);
@@ -827,7 +858,8 @@
                     } else {
                         userFavorites = [];
                         userProfile = { username: "", avatar: "" };
-                        userGainsHistory = [];
+                        userPurchasesHistory = [];
+                        userSalesHistory = [];
                     }
                     updateAuthUI();
 
@@ -845,16 +877,16 @@
             try {
                 const { data, error } = await supabaseClient
                     .from('user_profiles')
-                    .select('favorites, profile, gains')
+                    .select('favorites, profile, gains, purchases, sales')
                     .eq('id', currentUser.id)
                     .single();
 
                 if (data) {
                     userFavorites = data.favorites || [];
                     userProfile = data.profile || { username: "", avatar: "" };
-                    userGainsHistory = data.gains || [];
+                    userPurchasesHistory = data.purchases || data.gains || [];
+                    userSalesHistory = data.sales || [];
                 } else if (error && error.code === 'PGRST116') {
-                    // Row doesn't exist yet, let's create it with empty defaults
                     await saveUserDataToSupabase();
                 }
             } catch (err) {
@@ -871,7 +903,8 @@
                         id: currentUser.id,
                         favorites: userFavorites,
                         profile: userProfile,
-                        gains: userGainsHistory,
+                        purchases: userPurchasesHistory,
+                        sales: userSalesHistory,
                         updated_at: new Date()
                     });
             } catch (err) {
@@ -1000,24 +1033,50 @@
             }
         }
 
-        async function logCompletedFlip() {
-            const itemId = safeInt(document.getElementById('gainsSelectedItemId').value);
-            const qtyEl = document.getElementById('gainsQtyInput');
-            const buyEl = document.getElementById('gainsBuyInput');
-            const sellEl = document.getElementById('gainsSellInput');
+        function switchGainsTab(tab) {
+            activeGainsTab = tab;
+            const buyBtn = document.getElementById('gainsTabBuyBtn');
+            const sellBtn = document.getElementById('gainsTabSellBtn');
+            const buyForm = document.getElementById('gainsBuyFormContainer');
+            const sellForm = document.getElementById('gainsSellFormContainer');
+
+            if (tab === 'buy') {
+                buyBtn.style.background = 'var(--accent-green)';
+                buyBtn.style.color = '#fff';
+                buyBtn.style.borderColor = 'var(--accent-green)';
+                sellBtn.style.background = '#2c2c2c';
+                sellBtn.style.color = 'var(--text-muted)';
+                sellBtn.style.borderColor = '#444';
+                buyForm.style.display = 'grid';
+                sellForm.style.display = 'none';
+                document.getElementById('gainsTableTitle').innerText = "Active Purchases / Inventory";
+            } else {
+                sellBtn.style.background = 'var(--accent-orange)';
+                sellBtn.style.color = '#fff';
+                sellBtn.style.borderColor = 'var(--accent-orange)';
+                buyBtn.style.background = '#2c2c2c';
+                buyBtn.style.color = 'var(--text-muted)';
+                buyBtn.style.borderColor = '#444';
+                sellForm.style.display = 'grid';
+                buyForm.style.display = 'none';
+                document.getElementById('gainsTableTitle').innerText = "Completed Sales History";
+            }
+            renderGainsView();
+        }
+
+        async function logPurchaseEntry() {
+            const itemId = safeInt(document.getElementById('gainsSelectedItemIdBuy').value);
+            const qtyEl = document.getElementById('gainsQtyInputBuy');
+            const priceEl = document.getElementById('gainsBuyInputPrice');
 
             let qty = Math.max(1, safeInt(qtyEl.value));
-            let buyPrice = safeInt(buyEl.value);
-            let sellPrice = safeInt(sellEl.value);
+            let buyPrice = safeInt(priceEl.value);
 
             let item = cachedItemsMap[itemId];
             if (!item) {
-                alert("Please select a valid item from the dropdown search results.");
+                alert("Please select a valid item from the purchase dropdown search results.");
                 return;
             }
-
-            let tax = sellPrice > 0 ? Math.min(Math.floor((sellPrice * qty) * 0.01), 5000000) : 0;
-            let netProfit = (sellPrice * qty) - (buyPrice * qty) - tax;
 
             let entry = {
                 id: Date.now(),
@@ -1026,27 +1085,73 @@
                 icon: item.icon,
                 quantity: qty,
                 buyPrice: buyPrice,
-                sellPrice: sellPrice,
-                profit: netProfit,
+                totalCost: buyPrice * qty,
                 date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
 
-            userGainsHistory.unshift(entry);
+            userPurchasesHistory.unshift(entry);
             await saveUserDataToSupabase();
             renderGainsView();
             updateHomeHeaderStats();
         }
 
-        async function deleteGainsEntry(entryId) {
-            userGainsHistory = userGainsHistory.filter(e => e.id !== entryId);
+        async function logSaleEntry() {
+            const itemId = safeInt(document.getElementById('gainsSelectedItemIdSell').value);
+            const qtyEl = document.getElementById('gainsQtyInputSell');
+            const priceEl = document.getElementById('gainsSellInputPrice');
+
+            let qty = Math.max(1, safeInt(qtyEl.value));
+            let sellPrice = safeInt(priceEl.value);
+
+            let item = cachedItemsMap[itemId];
+            if (!item) {
+                alert("Please select a valid item from the sales dropdown search results.");
+                return;
+            }
+
+            // Estimate cost or find matching purchase if available, otherwise assume 0 cost
+            let matchingPurchase = userPurchasesHistory.find(p => p.itemId === item.id);
+            let unitCost = matchingPurchase ? matchingPurchase.buyPrice : 0;
+
+            let tax = sellPrice > 0 ? Math.min(Math.floor((sellPrice * qty) * 0.01), 5000000) : 0;
+            let netProfit = (sellPrice * qty) - (unitCost * qty) - tax;
+
+            let entry = {
+                id: Date.now(),
+                itemId: item.id,
+                name: item.name,
+                icon: item.icon,
+                quantity: qty,
+                sellPrice: sellPrice,
+                buyPrice: unitCost,
+                profit: netProfit,
+                date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            userSalesHistory.unshift(entry);
+            await saveUserDataToSupabase();
+            renderGainsView();
+            updateHomeHeaderStats();
+        }
+
+        async function deletePurchaseEntry(entryId) {
+            userPurchasesHistory = userPurchasesHistory.filter(e => e.id !== entryId);
+            await saveUserDataToSupabase();
+            renderGainsView();
+            updateHomeHeaderStats();
+        }
+
+        async function deleteSaleEntry(entryId) {
+            userSalesHistory = userSalesHistory.filter(e => e.id !== entryId);
             await saveUserDataToSupabase();
             renderGainsView();
             updateHomeHeaderStats();
         }
 
         async function clearGainsHistory() {
-            if (confirm("Are you sure you want to clear all logged gains history?")) {
-                userGainsHistory = [];
+            if (confirm("Are you sure you want to clear all tracked purchases and sales history?")) {
+                userPurchasesHistory = [];
+                userSalesHistory = [];
                 await saveUserDataToSupabase();
                 renderGainsView();
                 updateHomeHeaderStats();
@@ -1055,7 +1160,7 @@
 
         function updateHomeHeaderStats() {
             const totalProfitEl = document.getElementById('homeTotalProfitDisplay');
-            let totalProfit = userGainsHistory.reduce((sum, entry) => sum + entry.profit, 0);
+            let totalProfit = userSalesHistory.reduce((sum, entry) => sum + entry.profit, 0);
             if (totalProfitEl) {
                 totalProfitEl.innerText = (totalProfit >= 0 ? "+" : "") + totalProfit.toLocaleString() + " gp";
                 totalProfitEl.className = totalProfit >= 0 ? "highlight" : "neg-highlight";
@@ -1068,7 +1173,7 @@
             if (!ctx) return;
             if (homeMiniChartObj) homeMiniChartObj.destroy();
 
-            let chronological = [...userGainsHistory].reverse();
+            let chronological = [...userSalesHistory].reverse();
             let labels = [];
             let cumulativeData = [];
             let runningSum = 0;
@@ -1161,43 +1266,66 @@
         function renderGainsView() {
             const tbody = document.getElementById('gainsTableBody');
             const totalProfitEl = document.getElementById('gainsTotalProfit');
-            const totalCountEl = document.getElementById('gainsTotalCount');
+            const totalPurchasesEl = document.getElementById('gainsTotalPurchasesCount');
+            const tableHeaders = document.getElementById('gainsTableHeaders');
 
-            let totalProfit = userGainsHistory.reduce((sum, entry) => sum + entry.profit, 0);
+            let totalProfit = userSalesHistory.reduce((sum, entry) => sum + entry.profit, 0);
             totalProfitEl.innerText = (totalProfit >= 0 ? "+" : "") + totalProfit.toLocaleString() + " gp";
             totalProfitEl.className = totalProfit >= 0 ? "highlight" : "neg-highlight";
-            totalCountEl.innerText = userGainsHistory.length;
+            totalPurchasesEl.innerText = userPurchasesHistory.length;
 
             renderGainsChart();
 
-            if (!userGainsHistory.length) {
-                tbody.innerHTML = `<tr><td colspan="8" class="loading-overlay">No completed flips logged yet. Use the form above to track your profits!</td></tr>`;
-                return;
+            if (activeGainsTab === 'buy') {
+                tableHeaders.innerHTML = `<th>Icon</th><th>Item Name</th><th>Quantity</th><th>Buy Price (Ea)</th><th>Total Invested</th><th>Date Purchased</th><th>Action</th>`;
+                if (!userPurchasesHistory.length) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="loading-overlay">No active purchases logged yet. Use the 'Log Purchase' tab above.</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = "";
+                userPurchasesHistory.forEach(entry => {
+                    let tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><img src="${entry.icon}" width="26" height="26" loading="lazy" alt="icon"></td>
+                        <td><b>${entry.name}</b></td>
+                        <td>${entry.quantity.toLocaleString()}</td>
+                        <td>${entry.buyPrice.toLocaleString()} gp</td>
+                        <td>${entry.totalCost.toLocaleString()} gp</td>
+                        <td style="color: var(--text-muted); font-size: 0.75rem;">${entry.date}</td>
+                        <td><button onclick="deletePurchaseEntry(${entry.id})" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Delete</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tableHeaders.innerHTML = `<th>Icon</th><th>Item Name</th><th>Quantity</th><th>Buy Price</th><th>Sell Price</th><th>Realized Profit</th><th>Date Sold</th><th>Action</th>`;
+                if (!userSalesHistory.length) {
+                    tbody.innerHTML = `<tr><td colspan="8" class="loading-overlay">No completed sales logged yet. Use the 'Log Sale' tab above.</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = "";
+                userSalesHistory.forEach(entry => {
+                    let tr = document.createElement('tr');
+                    let profitSign = entry.profit >= 0 ? "+" : "";
+                    tr.innerHTML = `
+                        <td><img src="${entry.icon}" width="26" height="26" loading="lazy" alt="icon"></td>
+                        <td><b>${entry.name}</b></td>
+                        <td>${entry.quantity.toLocaleString()}</td>
+                        <td>${entry.buyPrice.toLocaleString()} gp</td>
+                        <td>${entry.sellPrice.toLocaleString()} gp</td>
+                        <td class="${entry.profit >= 0 ? 'highlight' : 'neg-highlight'}">${profitSign}${entry.profit.toLocaleString()} gp</td>
+                        <td style="color: var(--text-muted); font-size: 0.75rem;">${entry.date}</td>
+                        <td><button onclick="deleteSaleEntry(${entry.id})" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Delete</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
             }
-
-            tbody.innerHTML = "";
-            userGainsHistory.forEach(entry => {
-                let tr = document.createElement('tr');
-                let profitSign = entry.profit >= 0 ? "+" : "";
-                tr.innerHTML = `
-                    <td><img src="${entry.icon}" width="26" height="26" loading="lazy" alt="icon"></td>
-                    <td><b>${entry.name}</b></td>
-                    <td>${entry.quantity.toLocaleString()}</td>
-                    <td>${entry.buyPrice.toLocaleString()} gp</td>
-                    <td>${entry.sellPrice.toLocaleString()} gp</td>
-                    <td class="${entry.profit >= 0 ? 'highlight' : 'neg-highlight'}">${profitSign}${entry.profit.toLocaleString()} gp</td>
-                    <td style="color: var(--text-muted); font-size: 0.75rem;">${entry.date}</td>
-                    <td><button onclick="deleteGainsEntry(${entry.id})" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Delete</button></td>
-                `;
-                tbody.appendChild(tr);
-            });
         }
 
         function renderGainsChart() {
             const ctx = document.getElementById('gainsPerformanceChart').getContext('2d');
             if (gainsChartObj) gainsChartObj.destroy();
 
-            let chronological = [...userGainsHistory].reverse();
+            let chronological = [...userSalesHistory].reverse();
             let labels = [];
             let cumulativeData = [];
             let runningSum = 0;
@@ -1245,15 +1373,16 @@
             });
         }
 
-        function openGainsDropdown() {
-            filterGainsDropdown();
+        function openGainsDropdown(type) {
+            filterGainsDropdown(type);
         }
 
-        function filterGainsDropdown() {
-            const inputVal = document.getElementById('gainsItemSearchInput').value.toUpperCase();
-            const listEl = document.getElementById('gainsDropdownList');
+        function filterGainsDropdown(type) {
+            const inputEl = document.getElementById(type === 'buy' ? 'gainsItemSearchInputBuy' : 'gainsItemSearchInputSell');
+            const listEl = document.getElementById(type === 'buy' ? 'gainsDropdownListBuy' : 'gainsDropdownListSell');
+            const inputVal = inputEl.value.toUpperCase();
+            
             let sortedItems = Object.values(cachedItemsMap).sort((a, b) => a.name.localeCompare(b.name));
-
             let filtered = sortedItems.filter(item => item.name.toUpperCase().includes(inputVal));
 
             if (filtered.length === 0) {
@@ -1267,18 +1396,24 @@
                 let div = document.createElement('div');
                 div.className = "searchable-dropdown-item";
                 div.innerHTML = `<img src="${item.icon}" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"><span>${item.name}</span>`;
-                div.onmousedown = () => selectGainsItem(item);
+                div.onmousedown = () => selectGainsItem(item, type);
                 listEl.appendChild(div);
             });
             listEl.classList.add('open');
         }
 
-        function selectGainsItem(item) {
-            document.getElementById('gainsItemSearchInput').value = item.name;
-            document.getElementById('gainsSelectedItemId').value = item.id;
-            document.getElementById('gainsBuyInput').value = item.buy || 0;
-            document.getElementById('gainsSellInput').value = item.sell || 0;
-            document.getElementById('gainsDropdownList').classList.remove('open');
+        function selectGainsItem(item, type) {
+            if (type === 'buy') {
+                document.getElementById('gainsItemSearchInputBuy').value = item.name;
+                document.getElementById('gainsSelectedItemIdBuy').value = item.id;
+                document.getElementById('gainsBuyInputPrice').value = item.buy || 0;
+                document.getElementById('gainsDropdownListBuy').classList.remove('open');
+            } else {
+                document.getElementById('gainsItemSearchInputSell').value = item.name;
+                document.getElementById('gainsSelectedItemIdSell').value = item.id;
+                document.getElementById('gainsSellInputPrice').value = item.sell || 0;
+                document.getElementById('gainsDropdownListSell').classList.remove('open');
+            }
         }
 
         function openAuthModal() {
@@ -2223,8 +2358,11 @@
             if (event.target == document.getElementById('chartModal')) document.getElementById('chartModal').style.display = "none";
             if (event.target == document.getElementById('authModal')) closeAuthModal();
             if (event.target == document.getElementById('resetPasswordModal')) document.getElementById('resetPasswordModal').style.display = "none";
-            if (!document.getElementById('searchableSelectWrapper').contains(event.target)) {
-                document.getElementById('gainsDropdownList').classList.remove('open');
+            if (!document.getElementById('searchableSelectWrapperBuy').contains(event.target)) {
+                document.getElementById('gainsDropdownListBuy').classList.remove('open');
+            }
+            if (!document.getElementById('searchableSelectWrapperSell').contains(event.target)) {
+                document.getElementById('gainsDropdownListSell').classList.remove('open');
             }
             closeUserDropdown();
         }
