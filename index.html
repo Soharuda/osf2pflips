@@ -54,7 +54,8 @@
         
         .main-header-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; position: relative; }
         .header-left { display: flex; align-items: center; gap: 12px; }
-        .main-header-bar h1 { font-size: 1.2rem; color: var(--accent-green); margin: 0; }
+        .main-header-bar h1 { font-size: 1.2rem; color: var(--accent-green); margin: 0; cursor: pointer; transition: opacity 0.2s; }
+        .main-header-bar h1:hover { opacity: 0.8; }
 
         .auth-action-btn { background: #2c2c2c; color: var(--accent-orange); border: 1px solid var(--accent-orange); padding: 6px 12px; border-radius: 5px; font-weight: bold; font-size: 0.8rem; cursor: pointer; white-space: nowrap; transition: background 0.2s; }
         .auth-action-btn:hover { background: #3c3c3c; color: #fff; }
@@ -145,6 +146,19 @@
         .loading-overlay { text-align: center; color: #ffa726; padding: 20px; font-size: 0.9rem; grid-column: 1 / -1; }
         .error-overlay { text-align: center; color: #FF5252; padding: 20px; font-size: 0.85rem; word-break: break-all; grid-column: 1 / -1; }
 
+        /* Custom Searchable Dropdown Layout Fixes */
+        .gains-form-grid { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 12px; align-items: flex-end; }
+        @media (max-width: 768px) {
+            .gains-form-grid { grid-template-columns: 1fr; }
+        }
+        .searchable-select-wrapper { position: relative; width: 100%; }
+        .searchable-select-input { width: 100%; padding: 9px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; font-size: 0.85rem; box-sizing: border-box; }
+        .searchable-dropdown-list { display: none; position: absolute; left: 0; right: 0; top: 100%; margin-top: 2px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 5px; max-height: 175px; overflow-y: auto; z-index: 150; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .searchable-dropdown-list.open { display: block; }
+        .searchable-dropdown-item { padding: 8px 12px; font-size: 0.85rem; color: var(--text-main); cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .searchable-dropdown-item img { width: 20px; height: 20px; object-fit: contain; }
+        .searchable-dropdown-item:hover { background: #2a2a2a; color: #fff; }
+
         /* Password Strength Checklist */
         .password-requirements { display: none; flex-direction: column; gap: 3px; font-size: 0.75rem; margin-top: 4px; background: #161616; padding: 8px; border-radius: 5px; border: 1px solid var(--border-color); }
         .req-item { color: var(--neg-highlight); display: flex; align-items: center; gap: 6px; }
@@ -163,6 +177,7 @@
             <button class="nav-btn active" onclick="switchView('home', this)">🏠 Dashboard</button>
             <button class="nav-btn" onclick="switchView('flips', this)">📦 All Items</button>
             <button class="nav-btn" onclick="switchView('favorites', this)">⭐ Favorites</button>
+            <button class="nav-btn" onclick="switchView('gains', this)">📈 Gains Tracker</button>
             <button class="nav-btn" onclick="switchView('alch', this)">🧙‍♂️ High Alch Hub</button>
             
             <!-- Production Hub with Popdown Submenus -->
@@ -206,11 +221,11 @@
     <!-- Main Content Panel -->
     <div class="main-content">
 
-        <!-- Top Header Bar with Menu Button, App Title, and Top-Right Auth Controls -->
+        <!-- Top Header Bar with Clickable Title -->
         <div class="main-header-bar">
             <div class="header-left">
                 <button class="toggle-btn" onclick="toggleSidebar()" style="font-size: 1.3rem;">☰</button>
-                <h1>🪙 OSRS F2P Dashboard</h1>
+                <h1 onclick="switchView('home', document.querySelector('.sidebar-menu .nav-btn'))">🪙 OSRS F2P Dashboard</h1>
             </div>
             <div class="header-auth-container">
                 <button class="auth-action-btn" id="authActionButton" onclick="openAuthModal()">Sign In</button>
@@ -277,6 +292,70 @@
             <div id="favoritesGrid" class="card-grid"></div>
         </div>
 
+        <!-- GAINS TRACKER VIEW -->
+        <div id="view-gains" class="view-section">
+            <h2>📈 Gains Tracker - Completed Flips</h2>
+            
+            <div class="gains-form-grid">
+                <!-- Searchable Dropdown Custom Component -->
+                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">Select Completed Item</label>
+                    <div class="searchable-select-wrapper" id="searchableSelectWrapper">
+                        <input type="text" id="gainsItemSearchInput" class="searchable-select-input" placeholder="Type to search item..." autocomplete="off" oninput="filterGainsDropdown()" onfocus="openGainsDropdown()">
+                        <div id="gainsDropdownList" class="searchable-dropdown-list"></div>
+                    </div>
+                    <input type="hidden" id="gainsSelectedItemId" value="">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">Quantity</label>
+                    <input type="number" id="gainsQtyInput" value="1" min="1" style="padding: 9px; width: 100%; box-sizing: border-box;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">Buy Price (Each)</label>
+                    <input type="number" id="gainsBuyInput" placeholder="0" style="padding: 9px; width: 100%; box-sizing: border-box;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">Sell Price (Each)</label>
+                    <input type="number" id="gainsSellInput" placeholder="0" style="padding: 9px; width: 100%; box-sizing: border-box;">
+                </div>
+                <button class="auth-action-btn" onclick="logCompletedFlip()" style="padding: 10px 16px; height: 41px; width: 100%;">Log Flip</button>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 20px; flex: 1; min-width: 160px;">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Total Net Profit</span>
+                    <span id="gainsTotalProfit" class="highlight" style="font-size: 1.2rem;">0 gp</span>
+                </div>
+                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 20px; flex: 1; min-width: 160px;">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Total Flips Tracked</span>
+                    <span id="gainsTotalCount" style="font-size: 1.2rem; color: #fff; font-weight: bold;">0</span>
+                </div>
+                <button onclick="clearGainsHistory()" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold;">Clear History</button>
+            </div>
+
+            <!-- Gains Performance Line Chart -->
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                <span style="font-size: 0.85rem; color: var(--accent-orange); font-weight: bold; display: block; margin-bottom: 8px;">Cumulative Net Profit Over Time</span>
+                <div style="position: relative; height: 160px; width: 100%;">
+                    <canvas id="gainsPerformanceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Icon</th><th>Item Name</th><th>Quantity</th><th>Buy Price</th><th>Sell Price</th><th>Net Profit</th><th>Date Logged</th><th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gainsTableBody">
+                        <tr><td colspan="8" class="loading-overlay">No completed flips logged yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- ACCOUNT PAGE VIEW -->
         <div id="view-account" class="view-section">
             <h2>👤 Account Settings</h2>
@@ -301,7 +380,7 @@
 
                 <div id="accountMessageStatus" style="font-size: 0.75rem; min-height: 16px;"></div>
 
-                <button class="auth-action-btn" onclick="saveAccountSettings()" style="padding: 10px; text-align: center; width: 100%;">Save Changes</button>
+                <button class="auth-action-btn" id="saveAccountBtn" onclick="saveAccountSettings()" style="padding: 10px; text-align: center; width: 100%;">Save Changes</button>
             </div>
         </div>
 
@@ -638,6 +717,7 @@
 
         let priceChartObj = null;
         let volumeChartObj = null;
+        let gainsChartObj = null;
         let currentItemId = null;
         
         let currentView = "home";
@@ -656,6 +736,7 @@
         let isRegisterMode = false;
         let userFavorites = JSON.parse(localStorage.getItem('osrs_f2p_favorites') || '[]');
         let userProfile = JSON.parse(localStorage.getItem('osrs_f2p_profile') || '{"username": "", "avatar": ""}');
+        let userGainsHistory = JSON.parse(localStorage.getItem('osrs_f2p_gains') || '[]');
 
         const safeInt = (val) => {
             const parsed = parseInt(val);
@@ -734,15 +815,24 @@
             const newUsername = document.getElementById('accountUsernameInput').value.trim();
             const newAvatar = document.getElementById('accountAvatarInput').value.trim();
             const statusEl = document.getElementById('accountMessageStatus');
+            const saveBtn = document.getElementById('saveAccountBtn');
 
             userProfile.username = newUsername;
             userProfile.avatar = newAvatar;
             localStorage.setItem('osrs_f2p_profile', JSON.stringify(userProfile));
 
             updateAuthUI();
-            statusEl.style.color = "var(--accent-green)";
-            statusEl.innerText = "Profile updated successfully!";
-            setTimeout(() => { statusEl.innerText = ""; }, 3000);
+
+            let originalText = saveBtn.innerText;
+            saveBtn.innerText = "Saved!";
+            saveBtn.style.backgroundColor = "var(--accent-green)";
+            saveBtn.style.color = "#fff";
+
+            setTimeout(() => {
+                saveBtn.innerText = originalText;
+                saveBtn.style.backgroundColor = "";
+                saveBtn.style.color = "";
+            }, 2000);
         }
 
         function toggleFavorite(itemId, event) {
@@ -764,6 +854,179 @@
                     renderHomeView(homeDataCache);
                 }
             }
+        }
+
+        function logCompletedFlip() {
+            const itemId = safeInt(document.getElementById('gainsSelectedItemId').value);
+            const qtyEl = document.getElementById('gainsQtyInput');
+            const buyEl = document.getElementById('gainsBuyInput');
+            const sellEl = document.getElementById('gainsSellInput');
+
+            let qty = Math.max(1, safeInt(qtyEl.value));
+            let buyPrice = safeInt(buyEl.value);
+            let sellPrice = safeInt(sellEl.value);
+
+            let item = cachedItemsMap[itemId];
+            if (!item) {
+                alert("Please select a valid item from the dropdown search results.");
+                return;
+            }
+
+            let tax = sellPrice > 0 ? Math.min(Math.floor((sellPrice * qty) * 0.01), 5000000) : 0;
+            let netProfit = (sellPrice * qty) - (buyPrice * qty) - tax;
+
+            let entry = {
+                id: Date.now(),
+                itemId: item.id,
+                name: item.name,
+                icon: item.icon,
+                quantity: qty,
+                buyPrice: buyPrice,
+                sellPrice: sellPrice,
+                profit: netProfit,
+                date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            userGainsHistory.unshift(entry);
+            localStorage.setItem('osrs_f2p_gains', JSON.stringify(userGainsHistory));
+            renderGainsView();
+        }
+
+        function deleteGainsEntry(entryId) {
+            userGainsHistory = userGainsHistory.filter(e => e.id !== entryId);
+            localStorage.setItem('osrs_f2p_gains', JSON.stringify(userGainsHistory));
+            renderGainsView();
+        }
+
+        function clearGainsHistory() {
+            if (confirm("Are you sure you want to clear all logged gains history?")) {
+                userGainsHistory = [];
+                localStorage.setItem('osrs_f2p_gains', JSON.stringify(userGainsHistory));
+                renderGainsView();
+            }
+        }
+
+        function renderGainsView() {
+            const tbody = document.getElementById('gainsTableBody');
+            const totalProfitEl = document.getElementById('gainsTotalProfit');
+            const totalCountEl = document.getElementById('gainsTotalCount');
+
+            let totalProfit = userGainsHistory.reduce((sum, entry) => sum + entry.profit, 0);
+            totalProfitEl.innerText = (totalProfit >= 0 ? "+" : "") + totalProfit.toLocaleString() + " gp";
+            totalProfitEl.className = totalProfit >= 0 ? "highlight" : "neg-highlight";
+            totalCountEl.innerText = userGainsHistory.length;
+
+            renderGainsChart();
+
+            if (!userGainsHistory.length) {
+                tbody.innerHTML = `<tr><td colspan="8" class="loading-overlay">No completed flips logged yet. Use the form above to track your profits!</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = "";
+            userGainsHistory.forEach(entry => {
+                let tr = document.createElement('tr');
+                let profitSign = entry.profit >= 0 ? "+" : "";
+                tr.innerHTML = `
+                    <td><img src="${entry.icon}" width="26" height="26" loading="lazy" alt="icon"></td>
+                    <td><b>${entry.name}</b></td>
+                    <td>${entry.quantity.toLocaleString()}</td>
+                    <td>${entry.buyPrice.toLocaleString()} gp</td>
+                    <td>${entry.sellPrice.toLocaleString()} gp</td>
+                    <td class="${entry.profit >= 0 ? 'highlight' : 'neg-highlight'}">${profitSign}${entry.profit.toLocaleString()} gp</td>
+                    <td style="color: var(--text-muted); font-size: 0.75rem;">${entry.date}</td>
+                    <td><button onclick="deleteGainsEntry(${entry.id})" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Delete</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderGainsChart() {
+            const ctx = document.getElementById('gainsPerformanceChart').getContext('2d');
+            if (gainsChartObj) gainsChartObj.destroy();
+
+            let chronological = [...userGainsHistory].reverse();
+            let labels = [];
+            let cumulativeData = [];
+            let runningSum = 0;
+
+            if (chronological.length === 0) {
+                labels = ["Start"];
+                cumulativeData = [0];
+            } else {
+                chronological.forEach((entry, idx) => {
+                    runningSum += entry.profit;
+                    labels.push(`#${idx + 1} (${entry.name})`);
+                    cumulativeData.push(runningSum);
+                });
+            }
+
+            gainsChartObj = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cumulative Profit (gp)',
+                        data: cumulativeData,
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        pointRadius: 0,
+                        pointHitRadius: 0,
+                        pointHoverRadius: 0,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#aaa', maxTicksLimit: 8 }, grid: { color: '#222' } },
+                        y: { ticks: { color: '#aaa', callback: v => v.toLocaleString() + ' gp' }, grid: { color: '#222' } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
+        }
+
+        function openGainsDropdown() {
+            filterGainsDropdown();
+        }
+
+        function filterGainsDropdown() {
+            const inputVal = document.getElementById('gainsItemSearchInput').value.toUpperCase();
+            const listEl = document.getElementById('gainsDropdownList');
+            let sortedItems = Object.values(cachedItemsMap).sort((a, b) => a.name.localeCompare(b.name));
+
+            let filtered = sortedItems.filter(item => item.name.toUpperCase().includes(inputVal));
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `<div style="padding: 8px 12px; font-size: 0.8rem; color: var(--text-muted);">No items found</div>`;
+                listEl.classList.add('open');
+                return;
+            }
+
+            listEl.innerHTML = "";
+            filtered.forEach(item => {
+                let div = document.createElement('div');
+                div.className = "searchable-dropdown-item";
+                div.innerHTML = `<img src="${item.icon}" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"><span>${item.name}</span>`;
+                div.onmousedown = () => selectGainsItem(item);
+                listEl.appendChild(div);
+            });
+            listEl.classList.add('open');
+        }
+
+        function selectGainsItem(item) {
+            document.getElementById('gainsItemSearchInput').value = item.name;
+            document.getElementById('gainsSelectedItemId').value = item.id;
+            document.getElementById('gainsBuyInput').value = item.buy || 0;
+            document.getElementById('gainsSellInput').value = item.sell || 0;
+            document.getElementById('gainsDropdownList').classList.remove('open');
         }
 
         function openAuthModal() {
@@ -1150,7 +1413,12 @@
             currentView = viewName;
             currentPage = 1;
             document.querySelectorAll('.sidebar-menu .nav-btn').forEach(b => b.classList.remove('active'));
-            if (btn) btn.classList.add('active');
+            if (btn) {
+                btn.classList.add('active');
+            } else {
+                const homeBtn = document.querySelector('.sidebar-menu .nav-btn');
+                if (homeBtn) homeBtn.classList.add('active');
+            }
 
             document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
             document.getElementById('view-' + viewName).classList.add('active');
@@ -1170,6 +1438,8 @@
                 filterAndSortData();
             } else if (viewName === 'favorites') {
                 loadMarketData().then(itemsMap => renderFavoritesView(itemsMap));
+            } else if (viewName === 'gains') {
+                loadMarketData().then(() => renderGainsView());
             } else if (viewName === 'alch') {
                 sortField = "alch_profit"; sortAsc = false;
                 filterAndSortData();
@@ -1347,6 +1617,8 @@
                 } else if (currentView === 'favorites') {
                     let itemsMap = await loadMarketData();
                     renderFavoritesView(itemsMap);
+                    return;
+                } else if (currentView === 'gains') {
                     return;
                 }
 
@@ -1624,6 +1896,9 @@
         window.onclick = function(event) { 
             if (event.target == document.getElementById('chartModal')) document.getElementById('chartModal').style.display = "none";
             if (event.target == document.getElementById('authModal')) closeAuthModal();
+            if (!document.getElementById('searchableSelectWrapper').contains(event.target)) {
+                document.getElementById('gainsDropdownList').classList.remove('open');
+            }
             closeUserDropdown();
         }
 
