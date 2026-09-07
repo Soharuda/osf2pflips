@@ -787,9 +787,10 @@
         let currentUser = null;
         let isRegisterMode = false;
         let isForgotPasswordMode = false;
-        let userFavorites = JSON.parse(localStorage.getItem('osrs_f2p_favorites') || '[]');
-        let userProfile = JSON.parse(localStorage.getItem('osrs_f2p_profile') || '{"username": "", "avatar": ""}');
-        let userGainsHistory = JSON.parse(localStorage.getItem('osrs_f2p_gains') || '[]');
+
+        let userFavorites = [];
+        let userProfile = { username: "", avatar: "" };
+        let userGainsHistory = [];
 
         const safeInt = (val) => {
             const parsed = parseInt(val);
@@ -816,10 +817,18 @@
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session && session.user) {
                     currentUser = session.user;
+                    await loadUserDataFromSupabase();
                     updateAuthUI();
                 }
-                supabaseClient.auth.onAuthStateChange((event, session) => {
+                supabaseClient.auth.onAuthStateChange(async (event, session) => {
                     currentUser = session ? session.user : null;
+                    if (currentUser) {
+                        await loadUserDataFromSupabase();
+                    } else {
+                        userFavorites = [];
+                        userProfile = { username: "", avatar: "" };
+                        userGainsHistory = [];
+                    }
                     updateAuthUI();
 
                     if (event === "PASSWORD_RECOVERY") {
@@ -828,6 +837,45 @@
                 });
             } catch (err) {
                 console.error("Auth init error:", err);
+            }
+        }
+
+        async function loadUserDataFromSupabase() {
+            if (!currentUser) return;
+            try {
+                const { data, error } = await supabaseClient
+                    .from('user_profiles')
+                    .select('favorites, profile, gains')
+                    .eq('id', currentUser.id)
+                    .single();
+
+                if (data) {
+                    userFavorites = data.favorites || [];
+                    userProfile = data.profile || { username: "", avatar: "" };
+                    userGainsHistory = data.gains || [];
+                } else if (error && error.code === 'PGRST116') {
+                    // Row doesn't exist yet, let's create it with empty defaults
+                    await saveUserDataToSupabase();
+                }
+            } catch (err) {
+                console.error("Error loading user data from Supabase:", err);
+            }
+        }
+
+        async function saveUserDataToSupabase() {
+            if (!currentUser) return;
+            try {
+                await supabaseClient
+                    .from('user_profiles')
+                    .upsert({
+                        id: currentUser.id,
+                        favorites: userFavorites,
+                        profile: userProfile,
+                        gains: userGainsHistory,
+                        updated_at: new Date()
+                    });
+            } catch (err) {
+                console.error("Error saving user data to Supabase:", err);
             }
         }
 
@@ -879,6 +927,7 @@
                 if (Object.keys(cachedItemsMap).length > 0) {
                     renderHomeFavoritesSection(cachedItemsMap);
                 }
+                updateHomeHeaderStats();
             } else {
                 actionBtn.style.display = 'block';
                 profilePill.style.display = 'none';
@@ -888,6 +937,7 @@
                 navGainsBtn.classList.add('hidden-nav');
 
                 document.getElementById('homeFavoritesSection').style.display = 'none';
+                updateHomeHeaderStats();
 
                 if (currentView === 'account' || currentView === 'favorites' || currentView === 'gains') {
                     switchView('home');
@@ -905,14 +955,14 @@
             document.getElementById('userDropdownMenu').classList.remove('open');
         }
 
-        function saveAccountSettings() {
+        async function saveAccountSettings() {
             const newUsername = document.getElementById('accountUsernameInput').value.trim();
             const newAvatar = document.getElementById('accountAvatarInput').value.trim();
             const saveBtn = document.getElementById('saveAccountBtn');
 
             userProfile.username = newUsername;
             userProfile.avatar = newAvatar;
-            localStorage.setItem('osrs_f2p_profile', JSON.stringify(userProfile));
+            await saveUserDataToSupabase();
 
             updateAuthUI();
 
@@ -928,7 +978,7 @@
             }, 2000);
         }
 
-        function toggleFavorite(itemId, event) {
+        async function toggleFavorite(itemId, event) {
             if (event) event.stopPropagation();
             itemId = safeInt(itemId);
             let idx = userFavorites.indexOf(itemId);
@@ -937,7 +987,7 @@
             } else {
                 userFavorites.push(itemId);
             }
-            localStorage.setItem('osrs_f2p_favorites', JSON.stringify(userFavorites));
+            await saveUserDataToSupabase();
 
             if (currentView === 'favorites') {
                 loadMarketData().then(itemsMap => renderFavoritesView(itemsMap));
@@ -950,7 +1000,7 @@
             }
         }
 
-        function logCompletedFlip() {
+        async function logCompletedFlip() {
             const itemId = safeInt(document.getElementById('gainsSelectedItemId').value);
             const qtyEl = document.getElementById('gainsQtyInput');
             const buyEl = document.getElementById('gainsBuyInput');
@@ -982,22 +1032,22 @@
             };
 
             userGainsHistory.unshift(entry);
-            localStorage.setItem('osrs_f2p_gains', JSON.stringify(userGainsHistory));
+            await saveUserDataToSupabase();
             renderGainsView();
             updateHomeHeaderStats();
         }
 
-        function deleteGainsEntry(entryId) {
+        async function deleteGainsEntry(entryId) {
             userGainsHistory = userGainsHistory.filter(e => e.id !== entryId);
-            localStorage.setItem('osrs_f2p_gains', JSON.stringify(userGainsHistory));
+            await saveUserDataToSupabase();
             renderGainsView();
             updateHomeHeaderStats();
         }
 
-        function clearGainsHistory() {
+        async function clearGainsHistory() {
             if (confirm("Are you sure you want to clear all logged gains history?")) {
                 userGainsHistory = [];
-                localStorage.setItem('osrs_f2p_gains', JSON.stringify(userGainsHistory));
+                await saveUserDataToSupabase();
                 renderGainsView();
                 updateHomeHeaderStats();
             }
@@ -1077,7 +1127,6 @@
                 return;
             }
 
-            // Sort by highest margin/profit
             favItems.sort((a, b) => b.margin - a.margin);
             let topTwo = favItems.slice(0, 2);
 
@@ -1654,8 +1703,7 @@
 
         async function initDashboard() {
             updateViewToggleButton();
-            initAuth();
-            updateHomeHeaderStats();
+            await initAuth();
             try {
                 let itemsMap = await loadMarketData();
                 renderHomeView(Object.values(itemsMap));
