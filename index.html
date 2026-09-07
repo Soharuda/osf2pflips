@@ -436,6 +436,34 @@
             return { text: rating, class: cssClass, description: desc };
         }
 
+        function calculateAIConfidence(item) {
+            let score = 50; 
+            if (item.volume >= 100000) score += 25;
+            else if (item.volume >= 10000) score += 20;
+            else if (item.volume >= 1000) score += 10;
+            else if (item.volume < 200) score -= 20;
+
+            let roi = item.buy > 0 ? (item.margin / item.buy) * 100 : 0;
+            if (roi >= 1 && roi <= 12) score += 20; 
+            else if (roi > 12 && roi <= 25) score += 5;
+            else if (roi > 25) score -= 20; 
+            else if (roi < 0.2) score -= 10; 
+
+            if (item.trend === "Rising") score += 15;
+            else if (item.trend === "Stable") score += 10;
+            else if (item.trend === "Falling") score -= 15;
+
+            if (item.limit > 0 && item.volume >= item.limit) score += 10;
+            score = Math.max(5, Math.min(99, score));
+
+            let rating = "Low";
+            let badgeClass = "neg-highlight";
+            if (score >= 70) { rating = "High"; badgeClass = "highlight"; } 
+            else if (score >= 45) { rating = "Medium"; badgeClass = "tax-text"; }
+
+            return { score, rating, badgeClass, roiPct: roi.toFixed(2) };
+        }
+
         async function queryTurso(sql) {
             try {
                 let response = await fetch(TURSO_URL, {
@@ -524,8 +552,11 @@
                     alch_value: alchVal, alch_profit: alchProfit, trend, trendClass, trendIcon
                 };
 
-                let roi = itemObj.buy > 0 ? (itemObj.margin / itemObj.buy) * 100 : 0;
-                itemObj.roiPct = roi.toFixed(2);
+                let ai = calculateAIConfidence(itemObj);
+                itemObj.aiScore = ai.score;
+                itemObj.aiRating = ai.rating;
+                itemObj.aiBadgeClass = ai.badgeClass;
+                itemObj.roiPct = ai.roiPct;
                 
                 let dRate = calculateDataRating(itemObj);
                 itemObj.dataRatingText = dRate.text;
@@ -585,6 +616,7 @@
                     icon: prodIcon, ingredients: ingredients, cost: cost, sell: sell, tax: tax, profit: profit,
                     margin: cost > 0 ? (profit / cost) * 100 : 0, alch_value: alchVal, alch_profit: alchProfit,
                     trend: product.trend || "Stable", trendClass: product.trendClass || "tax-text", trendIcon: product.trendIcon || "⚖️",
+                    aiScore: product.aiScore || 50, aiRating: product.aiRating || "Medium", aiBadgeClass: product.aiBadgeClass || "tax-text",
                     dataRatingText: product.dataRatingText || "Poor", dataRatingClass: product.dataRatingClass || "neg-highlight", dataRatingDesc: product.dataRatingDesc || "",
                     volume: product.volume || 0, limit: product.limit || 0
                 });
@@ -626,21 +658,21 @@
             if (recSummary) recSummary.innerText = `⚡ Top ${limit} Recommended Flips`;
             if (overSummary) overSummary.innerText = `🌙 Top ${limit} Overnight Flips (Passive)`;
 
-            let usable = items.filter(x => x.buy > 0 && x.sell > 0 && x.margin > 0 && x.volume > 100);
+            let usable = items.filter(x => x.buy > 0 && x.sell > 0 && x.margin > 0 && x.volume > 100 && x.dataRatingText !== 'Stale' && x.dataRatingText !== 'Poor');
 
             let general = [...usable].sort((a, b) => {
                 let capA = a.limit > 0 ? Math.min(a.limit, a.volume / 6) : (a.volume / 6);
                 let capB = b.limit > 0 ? Math.min(b.limit, b.volume / 6) : (b.volume / 6);
-                let scoreA = a.margin * Math.sqrt(capA);
-                let scoreB = b.margin * Math.sqrt(capB);
+                let scoreA = (a.margin * capA) * (a.aiScore / 100);
+                let scoreB = (b.margin * capB) * (b.aiScore / 100);
                 return scoreB - scoreA;
             }).slice(0, limit);
 
             let overnight = [...usable].filter(x => x.margin >= 10).sort((a, b) => {
                 let capA = a.limit > 0 ? Math.min(a.limit * 2, a.volume / 3) : (a.volume / 3);
                 let capB = b.limit > 0 ? Math.min(b.limit * 2, b.volume / 3) : (b.volume / 3);
-                let scoreA = a.margin * Math.sqrt(capA);
-                let scoreB = b.margin * Math.sqrt(capB);
+                let scoreA = (a.margin * capA * 1.5) * (a.aiScore / 100);
+                let scoreB = (b.margin * capB * 1.5) * (b.aiScore / 100);
                 return scoreB - scoreA;
             }).slice(0, limit);
 
@@ -781,7 +813,7 @@
                     document.getElementById('tableHeaders').innerHTML = `
                         <th>Icon</th><th onclick="toggleSort('name')">Item ↕</th><th onclick="toggleSort('buy')">Buy ↕</th><th onclick="toggleSort('sell')">Sell ↕</th>
                         <th onclick="toggleSort('tax')">Tax ↕</th><th onclick="toggleSort('margin')">Profit ↕</th><th onclick="toggleSort('trend')">24h Trend ↕</th>
-                        <th onclick="toggleSort('dataRatingText')">Data Rating ↕</th><th onclick="toggleSort('volume')">Volume ↕</th><th onclick="toggleSort('limit')">Limit ↕</th>
+                        <th onclick="toggleSort('aiScore')">AI Confidence ↕</th><th onclick="toggleSort('volume')">Volume ↕</th><th onclick="toggleSort('limit')">Limit ↕</th>
                     `;
                 }
                 
@@ -933,7 +965,7 @@
                         <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
                         <td><b>${item.name}</b></td><td>${item.buy.toLocaleString()}</td><td>${item.sell.toLocaleString()}</td>
                         <td class="tax-text">${item.tax > 0 ? '-' + item.tax.toLocaleString() : '0'}</td><td class="${marginClass}">${marginSign}${item.margin.toLocaleString()}</td>
-                        <td class="${item.trendClass}">${item.trendIcon} ${item.trend}</td><td><span class="badge ${item.dataRatingClass}">${item.dataRatingText}</span></td>
+                        <td class="${item.trendClass}">${item.trendIcon} ${item.trend}</td><td class="${item.aiBadgeClass}">${item.aiRating} (${item.aiScore})</td>
                         <td><span style="color: ${volColor}; font-weight: bold;">${item.volume.toLocaleString()}</span></td><td>${item.limit.toLocaleString()}</td>
                     `;
                 }
