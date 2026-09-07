@@ -8,51 +8,85 @@
     <title>OSRS F2P Market Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 10px; }
-        h1 { color: #4CAF50; text-align: center; font-size: 1.3rem; margin-bottom: 10px; }
-        .tabs { display: flex; gap: 5px; margin-bottom: 8px; overflow-x: auto; padding-bottom: 4px; }
-        .tab-btn { background: #1e1e1e; color: #aaa; border: 1px solid #444; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; white-space: nowrap; font-weight: bold; }
-        .tab-btn.active { background: #4CAF50; color: #fff; border-color: #4CAF50; }
-        
-        .parent-sub-tabs { display: none; gap: 5px; margin-bottom: 6px; overflow-x: auto; padding-bottom: 4px; }
-        .parent-sub-btn { background: #1e1e1e; color: #ccc; border: 1px solid #555; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; font-weight: bold; white-space: nowrap; }
-        .parent-sub-btn.active { background: #FF9800; color: #fff; border-color: #FF9800; }
+        :root {
+            --bg-base: #121212;
+            --bg-surface: #1e1e1e;
+            --bg-card: #252525;
+            --border-color: #333;
+            --accent-green: #4CAF50;
+            --accent-orange: #FF9800;
+            --accent-blue: #2196F3;
+            --text-main: #e0e0e0;
+            --text-muted: #aaa;
+        }
 
-        .child-sub-tabs { display: none; gap: 4px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 4px; }
-        .child-sub-btn { background: #1a1a1a; color: #aaa; border: 1px solid #333; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; white-space: nowrap; display: flex; align-items: center; gap: 4px; font-weight: bold; }
-        .child-sub-btn img { width: 18px; height: 18px; object-fit: contain; }
-        .child-sub-btn.active { background: #2196F3; color: #fff; border-color: #2196F3; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-base); color: var(--text-main); margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; }
 
-        details { background: #1e1e1e; border: 1px solid #333; border-radius: 8px; margin-bottom: 15px; padding: 10px; }
-        summary { font-size: 1.0rem; font-weight: bold; color: #FF9800; cursor: pointer; outline: none; }
+        /* Sidebar Navigation Drawer */
+        .sidebar { width: 240px; background-color: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; flex-shrink: 0; position: fixed; height: 100vh; z-index: 100; left: 0; top: 0; transform: translateX(-100%); transition: transform 0.3s ease; }
+        .sidebar.open { transform: translateX(0); }
         
-        /* Grid Layout for smaller screens & wide monitors */
+        .sidebar-header { padding: 15px; font-size: 1.1rem; font-weight: bold; color: var(--accent-green); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; }
+        
+        .toggle-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem; padding: 4px; border-radius: 4px; }
+        .toggle-btn:hover { color: #fff; background: #2a2a2a; }
+
+        .sidebar-menu { display: flex; flex-direction: column; gap: 4px; padding: 10px; overflow-y: auto; }
+        .nav-btn { background: transparent; color: var(--text-muted); border: none; padding: 10px 12px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 0.9rem; font-weight: bold; transition: background 0.2s, color 0.2s; display: flex; align-items: center; gap: 10px; width: 100%; }
+        .nav-btn:hover { background: #2a2a2a; color: #fff; }
+        .nav-btn.active { background: var(--accent-green); color: #fff; }
+
+        /* Sidebar Submenu Dropdown for Production */
+        .nav-dropdown-container { display: flex; flex-direction: column; }
+        .submenu { display: none; flex-direction: column; gap: 2px; padding-left: 20px; margin-top: 2px; }
+        .submenu.open { display: flex; }
+        .sub-nav-btn { background: transparent; color: var(--text-muted); border: none; padding: 8px 10px; border-radius: 5px; cursor: pointer; text-align: left; font-size: 0.8rem; font-weight: bold; transition: background 0.2s, color 0.2s; display: flex; align-items: center; gap: 8px; width: 100%; }
+        .sub-nav-btn img { width: 16px; height: 16px; object-fit: contain; }
+        .sub-nav-btn:hover { background: #2a2a2a; color: #fff; }
+        .sub-nav-btn.active { background: var(--accent-blue); color: #fff; }
+
+        .nested-submenu { display: none; flex-direction: column; gap: 2px; padding-left: 20px; margin-top: 2px; }
+        .nested-submenu.open { display: flex; }
+
+        /* Main Content Area */
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; padding: 15px; box-sizing: border-box; width: 100%; }
+        
+        .main-header-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        .main-header-bar h1 { font-size: 1.2rem; color: var(--accent-green); margin: 0; }
+
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
+        h2 { color: var(--accent-orange); margin-top: 0; font-size: 1.2rem; margin-bottom: 12px; }
+
+        /* Grid Layout */
         .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 8px; padding-top: 10px; }
-        .card { background: #252525; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; cursor: pointer; border: 1px solid #333; transition: transform 0.1s, border-color 0.2s; }
-        .card:hover { border-color: #4CAF50; transform: translateY(-2px); }
+        .card { background: var(--bg-card); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.1s, border-color 0.2s; }
+        .card:hover { border-color: var(--accent-green); transform: translateY(-2px); }
         .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .card-header img { width: 32px; height: 32px; object-fit: contain; }
         .card-title { font-weight: bold; color: #fff; font-size: 0.85rem; line-height: 1.1; }
         .card-row { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px; }
-        .card-row .label { color: #aaa; }
+        .card-row .label { color: var(--text-muted); }
         .card-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; font-size: 0.65rem; }
-        .badge { padding: 3px 5px; border-radius: 4px; font-weight: bold; background: #181818; border: 1px solid #333; display: inline-flex; align-items: center; gap: 3px; }
-        .card-footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid #333; text-align: center; color: #FF9800; font-weight: bold; font-size: 0.75rem; }
+        .badge { padding: 3px 5px; border-radius: 4px; font-weight: bold; background: #181818; border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 3px; }
+        .card-footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color); text-align: center; color: var(--accent-orange); font-weight: bold; font-size: 0.75rem; }
 
         .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; align-items: center; }
-        input { flex-grow: 1; min-width: 150px; padding: 9px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; font-size: 0.85rem; box-sizing: border-box; }
-        #viewToggleBtn { background: #2c2c2c; color: #fff; border: 1px solid #4CAF50; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
+        input, select { flex-grow: 1; min-width: 150px; padding: 9px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; font-size: 0.85rem; box-sizing: border-box; }
+        select { max-width: 130px; flex-grow: 0; cursor: pointer; }
+        #viewToggleBtn { background: #2c2c2c; color: #fff; border: 1px solid var(--accent-green); padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
         
         .table-container { 
-            max-height: calc(100vh - 250px); 
+            max-height: calc(100vh - 200px); 
             overflow-y: auto; 
-            border: 1px solid #333; 
+            border: 1px solid var(--border-color); 
             border-radius: 6px; 
-            background: #1e1e1e; 
+            background: var(--bg-surface); 
         }
         
-        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; background: #1e1e1e; }
-        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #333; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; background: var(--bg-surface); }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid var(--border-color); }
         th { background: #2c2c2c; color: #ffa726; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 10; }
         th:hover { background: #3c3c3c; }
         tr { cursor: pointer; }
@@ -62,107 +96,193 @@
         .neg-highlight { color: #FF5252; font-weight: bold; }
         .alch-highlight { color: #29b6f6; font-weight: bold; }
         .tax-text { color: #ffab40; font-weight: bold; }
-        .ing-text { font-size: 0.7rem; color: #aaa; }
+        .ing-text { font-size: 0.7rem; color: var(--text-muted); }
         
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); overflow-y: auto; padding: 10px; box-sizing: border-box; }
-        .modal-content { background-color: #1e1e1e; margin: 3% auto; padding: 15px; border-radius: 10px; width: 100%; max-width: 600px; color: #fff; position: relative; text-align: center; }
-        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .modal-content { background-color: var(--bg-surface); margin: 3% auto; padding: 15px; border-radius: 10px; width: 100%; max-width: 600px; color: #fff; position: relative; text-align: center; }
+        .close { color: var(--text-muted); float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
         .close:hover { color: #fff; }
         
         .modal-header { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; }
-        .modal-header h3 { margin: 0; color: #4CAF50; font-size: 1.2rem; }
+        .modal-header h3 { margin: 0; color: var(--accent-green); font-size: 1.2rem; }
         .modal-header img { width: 44px; height: 44px; object-fit: contain; margin-top: 4px; }
 
         .modal-stats-table { width: 100%; border-collapse: collapse; background: #161616; border-radius: 6px; overflow: hidden; margin-bottom: 8px; font-size: 0.8rem; }
-        .modal-stats-table th, .modal-stats-table td { padding: 6px 8px; border: 1px solid #333; text-align: center; }
+        .modal-stats-table th, .modal-stats-table td { padding: 6px 8px; border: 1px solid var(--border-color); text-align: center; }
         .modal-stats-table th { background: #222; color: #ffa726; font-size: 0.75rem; }
 
-        /* Clickable Rating Tooltip Box */
         .tooltip-trigger { cursor: pointer; text-decoration: underline dotted; display: inline-block; }
-        .rating-tooltip-box { display: none; background: #252525; border: 1px solid #444; border-radius: 6px; padding: 8px 10px; font-size: 0.75rem; color: #ddd; margin-top: 6px; text-align: left; line-height: 1.3; }
+        .rating-tooltip-box { display: none; background: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 8px 10px; font-size: 0.75rem; color: #ddd; margin-top: 6px; text-align: left; line-height: 1.3; }
 
         .btn-group { display: flex; gap: 4px; margin-bottom: 12px; justify-content: center; flex-wrap: wrap; }
         .btn-group button { background: #2c2c2c; color: #fff; border: 1px solid #444; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
-        .btn-group button.active { background: #4CAF50; border-color: #4CAF50; }
+        .btn-group button.active { background: var(--accent-green); border-color: var(--accent-green); }
         .chart-container { position: relative; margin-bottom: 15px; height: 180px; width: 100%; }
         .loading-overlay { text-align: center; color: #ffa726; padding: 20px; font-size: 0.9rem; grid-column: 1 / -1; }
         .error-overlay { text-align: center; color: #FF5252; padding: 20px; font-size: 0.85rem; word-break: break-all; grid-column: 1 / -1; }
     </style>
 </head>
 <body>
-    <h1>🪙 OSRS F2P Market Dashboard</h1>
-    
-    <div class="tabs">
-        <button class="tab-btn active" onclick="setCategory('home', this)">Home</button>
-        <button class="tab-btn" onclick="setCategory('flips', this)">All Items</button>
-        <button class="tab-btn" onclick="setCategory('alch', this)">High Alch Hub</button>
-        <button class="tab-btn" onclick="setCategory('crafting', this)">Crafting & Recipes</button>
+
+    <!-- Sidebar Navigation Drawer -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span>Menu</span>
+            <button class="toggle-btn" onclick="toggleSidebar()">✕</button>
+        </div>
+        <div class="sidebar-menu">
+            <button class="nav-btn active" onclick="switchView('home', this)">🏠 Dashboard</button>
+            <button class="nav-btn" onclick="switchView('flips', this)">📦 All Items</button>
+            <button class="nav-btn" onclick="switchView('alch', this)">🧙‍♂️ High Alch Hub</button>
+            
+            <!-- Production Hub with Popdown Submenus -->
+            <div class="nav-dropdown-container">
+                <button class="nav-btn" id="prodMenuBtn" onclick="toggleProductionMenu()">⚒️ Production Hub ▾</button>
+                <div class="submenu" id="productionSubmenu">
+                    <!-- Crafting Submenu -->
+                    <div class="nav-dropdown-container">
+                        <button class="sub-nav-btn" onclick="toggleSubmenu('craftingSubmenu')">💎 Crafting ▾</button>
+                        <div class="nested-submenu" id="craftingSubmenu">
+                            <button class="sub-nav-btn" onclick="setProductionCategory('crafting', 'all', this)">All Crafting</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('crafting', 'crafting_jewelry', this)"><img src="https://oldschool.runescape.wiki/images/Gold_ring.png" alt="Jewelry"> Jewelry & Gems</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('crafting', 'crafting_leather', this)"><img src="https://oldschool.runescape.wiki/images/Leather_body.png" alt="Leather"> Leather</button>
+                        </div>
+                    </div>
+
+                    <!-- Smithing Submenu -->
+                    <div class="nav-dropdown-container">
+                        <button class="sub-nav-btn" onclick="toggleSubmenu('smithingSubmenu')">⚒️ Smithing ▾</button>
+                        <div class="nested-submenu" id="smithingSubmenu">
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'all', this)">All Metals</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'smithing_bronze', this)"><img src="https://oldschool.runescape.wiki/images/Bronze_bar.png" alt="Bronze"> Bronze</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'smithing_iron', this)"><img src="https://oldschool.runescape.wiki/images/Iron_bar.png" alt="Iron"> Iron</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'smithing_steel', this)"><img src="https://oldschool.runescape.wiki/images/Steel_bar.png" alt="Steel"> Steel</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'smithing_mithril', this)"><img src="https://oldschool.runescape.wiki/images/Mithril_bar.png" alt="Mithril"> Mithril</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'smithing_adamant', this)"><img src="https://oldschool.runescape.wiki/images/Adamantite_bar.png" alt="Adamant"> Adamant</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'smithing_runite', this)"><img src="https://oldschool.runescape.wiki/images/Runite_bar.png" alt="Runite"> Runite</button>
+                        </div>
+                    </div>
+
+                    <!-- Cooking Direct Item -->
+                    <button class="sub-nav-btn" onclick="setProductionCategory('cooking', 'cooking', this)"><img src="https://oldschool.runescape.wiki/images/Lobster.png" alt="Cooking"> Cooking</button>
+
+                    <!-- Runecrafting Direct Item -->
+                    <button class="sub-nav-btn" onclick="setProductionCategory('runecrafting', 'runecrafting', this)"><img src="https://oldschool.runescape.wiki/images/Air_rune.png" alt="Runecrafting"> Runecrafting</button>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="parent-sub-tabs" id="parentSubTabs">
-        <button class="parent-sub-btn active" onclick="setParentSkill('smithing', this)">Smithing</button>
-        <button class="parent-sub-btn" onclick="setParentSkill('crafting', this)">Crafting</button>
-        <button class="parent-sub-btn" onclick="setParentSkill('cooking', this)">Cooking</button>
-    </div>
+    <!-- Main Content Panel -->
+    <div class="main-content">
 
-    <div class="child-sub-tabs" id="smithingSubTabs">
-        <button class="child-sub-btn active" onclick="setSubFilter('all', this)">All Metals</button>
-        <button class="child-sub-btn" onclick="setSubFilter('smithing_bronze', this)"><img src="https://oldschool.runescape.wiki/images/Bronze_bar.png" alt="Bronze"> Bronze</button>
-        <button class="child-sub-btn" onclick="setSubFilter('smithing_iron', this)"><img src="https://oldschool.runescape.wiki/images/Iron_bar.png" alt="Iron"> Iron</button>
-        <button class="child-sub-btn" onclick="setSubFilter('smithing_steel', this)"><img src="https://oldschool.runescape.wiki/images/Steel_bar.png" alt="Steel"> Steel</button>
-        <button class="child-sub-btn" onclick="setSubFilter('smithing_mithril', this)"><img src="https://oldschool.runescape.wiki/images/Mithril_bar.png" alt="Mithril"> Mithril</button>
-        <button class="child-sub-btn" onclick="setSubFilter('smithing_adamant', this)"><img src="https://oldschool.runescape.wiki/images/Adamantite_bar.png" alt="Adamant"> Adamant</button>
-        <button class="child-sub-btn" onclick="setSubFilter('smithing_runite', this)"><img src="https://oldschool.runescape.wiki/images/Runite_bar.png" alt="Runite"> Runite</button>
-    </div>
+        <!-- Top Header Bar with Menu Button and App Title -->
+        <div class="main-header-bar">
+            <button class="toggle-btn" onclick="toggleSidebar()" style="font-size: 1.3rem;">☰</button>
+            <h1>🪙 OSRS F2P Dashboard</h1>
+        </div>
 
-    <div class="child-sub-tabs" id="craftingSubTabs">
-        <button class="child-sub-btn active" onclick="setSubFilter('all', this)">All Crafting</button>
-        <button class="child-sub-btn" onclick="setSubFilter('crafting_jewelry', this)"><img src="https://oldschool.runescape.wiki/images/Gold_ring.png" alt="Jewelry"> Jewelry & Gems</button>
-        <button class="child-sub-btn" onclick="setSubFilter('crafting_leather', this)"><img src="https://oldschool.runescape.wiki/images/Leather_body.png" alt="Leather"> Leather</button>
-    </div>
-
-    <div id="homeSectionsContainer">
-        <details open>
-            <summary id="recSummary">⚡ Top Recommended Flips</summary>
+        <!-- HOME VIEW -->
+        <div id="view-home" class="view-section active">
+            <h2 id="recSummary">⚡ Top Recommended Flips</h2>
             <div id="recContainer" class="card-grid">
                 <div class="loading-overlay">Loading market data...</div>
             </div>
-        </details>
-        <details>
-            <summary id="overnightSummary">🌙 Top Overnight Flips (Passive)</summary>
-            <div id="overnightContainer" class="card-grid">
-                <div class="loading-overlay">Loading overnight recommendations...</div>
+        </div>
+
+        <!-- ALL ITEMS VIEW -->
+        <div id="view-flips" class="view-section">
+            <h2>Market Explorer - All Items</h2>
+            <div class="controls">
+                <input type="text" id="searchFlipsInput" onkeyup="filterAndSortData()" placeholder="Search item...">
+                <select id="pageSizeSelect" onchange="changePageSize()">
+                    <option value="25">25 per page</option>
+                    <option value="50">50 per page</option>
+                    <option value="100">100 per page</option>
+                    <option value="250">250 per page</option>
+                </select>
+                <button id="viewToggleBtn" onclick="toggleViewMode()">🔲 Grid View</button>
             </div>
-        </details>
+            <div id="paginationFlipsControls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem;">
+                <button onclick="changePage(-1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Previous</button>
+                <span id="pageFlipsIndicator" style="color:#aaa; font-weight:bold;">Page 1 of 1</span>
+                <button onclick="changePage(1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Next</button>
+            </div>
+            <div class="table-container" id="tableContainerEl">
+                <table id="itemTable">
+                    <thead>
+                        <tr id="tableHeaders"></tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr><td colspan="10" class="loading-overlay">Loading data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="gridContainerEl" class="card-grid" style="display: none;"></div>
+        </div>
+
+        <!-- HIGH ALCH HUB VIEW -->
+        <div id="view-alch" class="view-section">
+            <h2>High Alchemy Hub</h2>
+            <div class="controls">
+                <input type="text" id="searchAlchInput" onkeyup="filterAndSortData()" placeholder="Search alch item...">
+            </div>
+            <div id="paginationAlchControls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem;">
+                <button onclick="changePage(-1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Previous</button>
+                <span id="pageAlchIndicator" style="color:#aaa; font-weight:bold;">Page 1 of 1</span>
+                <button onclick="changePage(1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Next</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Icon</th><th onclick="toggleSort('name')">Item ↕</th><th onclick="toggleSort('buy')">Buy Price ↕</th>
+                            <th onclick="toggleSort('alch_value')">Alch Value ↕</th><th onclick="toggleSort('alch_profit')">Profit/Cast ↕</th><th onclick="toggleSort('limit')">Limit ↕</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alchTableBody">
+                        <tr><td colspan="6" class="loading-overlay">Loading alch data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PRODUCTION HUB VIEW -->
+        <div id="view-production" class="view-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
+                <h2 id="productionTitle" style="margin: 0;">Production & Crafting Hub</h2>
+                <div id="rcLevelConfigContainer" style="display: none; align-items: center; gap: 6px; font-size: 0.85rem; background: var(--bg-surface); padding: 4px 10px; border: 1px solid var(--border-color); border-radius: 6px;">
+                    <span style="color: var(--text-muted); font-weight: bold;">Runecrafting Level:</span>
+                    <input type="number" id="rcPlayerLevel" value="1" min="1" max="99" onchange="filterAndSortData()" style="padding: 4px 8px; width: 60px; font-size: 0.85rem;">
+                </div>
+            </div>
+            <div class="controls" id="prodControlsContainer" style="margin-top: 8px;">
+                <input type="text" id="searchProdInput" onkeyup="filterAndSortData()" placeholder="Search recipe product...">
+            </div>
+            <div id="paginationProdControls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem;">
+                <button onclick="changePage(-1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Previous</button>
+                <span id="pageProdIndicator" style="color:#aaa; font-weight:bold;">Page 1 of 1</span>
+                <button onclick="changePage(1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Next</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Icon</th><th onclick="toggleSort('name')">Product ↕</th><th onclick="toggleSort('level')">Lvl ↕</th>
+                            <th>Ingredients Required</th><th onclick="toggleSort('cost')">Craft Cost ↕</th><th onclick="toggleSort('sell')">Sell Price ↕</th>
+                            <th onclick="toggleSort('profit')">GE Profit ↕</th><th onclick="toggleSort('alch_profit')">Alch Profit ↕</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productionTableBody">
+                        <tr><td colspan="8" class="loading-overlay">Loading production recipes...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 
-    <div id="searchAndTableWrapper" style="display: none;">
-        <div class="controls">
-            <input type="text" id="searchInput" onkeyup="filterAndSortData()" placeholder="Search item...">
-            <button id="viewToggleBtn" onclick="toggleViewMode()">🔲 Grid View</button>
-        </div>
-        <div id="paginationControls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem;">
-            <button onclick="changePage(-1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Previous</button>
-            <span id="pageIndicator" style="color:#aaa; font-weight:bold;">Page 1 of 1</span>
-            <button onclick="changePage(1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Next</button>
-        </div>
-
-        <div class="table-container" id="tableContainerEl">
-            <table id="itemTable">
-                <thead>
-                    <tr id="tableHeaders"></tr>
-                </thead>
-                <tbody id="tableBody">
-                    <tr><td colspan="10" class="loading-overlay">Loading data...</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div id="gridContainerEl" class="card-grid" style="display: none;">
-            <!-- Grid cards populated dynamically -->
-        </div>
-    </div>
-
+    <!-- Chart Modal -->
     <div id="chartModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeGraph()">&times;</span>
@@ -232,6 +352,7 @@
         const TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicm8iLCJnaWQiOiJjZjYxMWNiOC1iZGQ3LTQ3ZTUtOTgzMy0wOTczNmMxNzZlYWMiLCJpYXQiOjE3ODg2NDk2OTcsImtpZCI6InVjeGlNN2w2emt3bnFqaGZJM3dxbDZQZHZnU2Zub29IVWFZWVZPelA4cmsiLCJyaWQiOiI3YmEyMGE1Yy0yNmQ5LTRhNjQtYTY3ZC03NGEyMWMyNzYwMGUifQ.NZ5KHbj3iNJhJ7mVHa1lkCglb9EJV7K1BrBpZYcEYtpnG0z137jQw1EwJcvX1BL2lkNYWz2AjBKHr4P80zdfDQ";
 
         const F2P_RECIPES = [
+            // Smithing: Bronze
             {"id": 2349, "name": "Bronze bar", "type": "smithing_bronze", "level": 1, "ing": [[436, "Copper ore", 1], [438, "Tin ore", 1]]},
             {"id": 1205, "name": "Bronze dagger", "type": "smithing_bronze", "level": 1, "ing": [[2349, "Bronze bar", 1]]},
             {"id": 1351, "name": "Bronze axe", "type": "smithing_bronze", "level": 1, "ing": [[2349, "Bronze bar", 1]]},
@@ -247,6 +368,8 @@
             {"id": 1075, "name": "Bronze platelegs", "type": "smithing_bronze", "level": 16, "ing": [[2349, "Bronze bar", 3]]},
             {"id": 1087, "name": "Bronze plateskirt", "type": "smithing_bronze", "level": 16, "ing": [[2349, "Bronze bar", 3]]},
             {"id": 1117, "name": "Bronze platebody", "type": "smithing_bronze", "level": 18, "ing": [[2349, "Bronze bar", 5]]},
+            
+            // Smithing: Iron
             {"id": 2351, "name": "Iron bar", "type": "smithing_iron", "level": 15, "ing": [[440, "Iron ore", 1]]},
             {"id": 1203, "name": "Iron dagger", "type": "smithing_iron", "level": 15, "ing": [[2351, "Iron bar", 1]]},
             {"id": 1349, "name": "Iron axe", "type": "smithing_iron", "level": 16, "ing": [[2351, "Iron bar", 1]]},
@@ -257,11 +380,13 @@
             {"id": 1293, "name": "Iron longsword", "type": "smithing_iron", "level": 21, "ing": [[2351, "Iron bar", 2]]},
             {"id": 1153, "name": "Iron full helm", "type": "smithing_iron", "level": 22, "ing": [[2351, "Iron bar", 2]]},
             {"id": 1191, "name": "Iron sq shield", "type": "smithing_iron", "level": 23, "ing": [[2351, "Iron bar", 2]]},
-            {"id": 1193, "name": "Iron kiteshield", "type": "smithing_iron", "level": 27, "ing": [[2351, "Iron bar", 3]]},
             {"id": 1309, "name": "Iron 2h sword", "type": "smithing_iron", "level": 29, "ing": [[2351, "Iron bar", 3]]},
+            {"id": 1193, "name": "Iron kiteshield", "type": "smithing_iron", "level": 27, "ing": [[2351, "Iron bar", 3]]},
             {"id": 1067, "name": "Iron platelegs", "type": "smithing_iron", "level": 31, "ing": [[2351, "Iron bar", 3]]},
             {"id": 1081, "name": "Iron plateskirt", "type": "smithing_iron", "level": 31, "ing": [[2351, "Iron bar", 3]]},
             {"id": 1115, "name": "Iron platebody", "type": "smithing_iron", "level": 33, "ing": [[2351, "Iron bar", 5]]},
+
+            // Smithing: Steel
             {"id": 2353, "name": "Steel bar", "type": "smithing_steel", "level": 30, "ing": [[440, "Iron ore", 1], [453, "Coal", 2]]},
             {"id": 1207, "name": "Steel dagger", "type": "smithing_steel", "level": 30, "ing": [[2353, "Steel bar", 1]]},
             {"id": 1353, "name": "Steel axe", "type": "smithing_steel", "level": 31, "ing": [[2353, "Steel bar", 1]]},
@@ -278,6 +403,8 @@
             {"id": 1069, "name": "Steel platelegs", "type": "smithing_steel", "level": 46, "ing": [[2353, "Steel bar", 3]]},
             {"id": 1083, "name": "Steel plateskirt", "type": "smithing_steel", "level": 46, "ing": [[2353, "Steel bar", 3]]},
             {"id": 1119, "name": "Steel platebody", "type": "smithing_steel", "level": 48, "ing": [[2353, "Steel bar", 5]]},
+
+            // Smithing: Mithril
             {"id": 2359, "name": "Mithril bar", "type": "smithing_mithril", "level": 50, "ing": [[447, "Mithril ore", 1], [453, "Coal", 4]]},
             {"id": 1209, "name": "Mithril dagger", "type": "smithing_mithril", "level": 50, "ing": [[2359, "Mithril bar", 1]]},
             {"id": 1355, "name": "Mithril axe", "type": "smithing_mithril", "level": 51, "ing": [[2359, "Mithril bar", 1]]},
@@ -293,6 +420,8 @@
             {"id": 1071, "name": "Mithril platelegs", "type": "smithing_mithril", "level": 66, "ing": [[2359, "Mithril bar", 3]]},
             {"id": 1085, "name": "Mithril plateskirt", "type": "smithing_mithril", "level": 66, "ing": [[2359, "Mithril bar", 3]]},
             {"id": 1121, "name": "Mithril platebody", "type": "smithing_mithril", "level": 68, "ing": [[2359, "Mithril bar", 5]]},
+
+            // Smithing: Adamant
             {"id": 2361, "name": "Adamantite bar", "type": "smithing_adamant", "level": 70, "ing": [[449, "Adamantite ore", 1], [453, "Coal", 6]]},
             {"id": 1213, "name": "Adamant dagger", "type": "smithing_adamant", "level": 70, "ing": [[2361, "Adamantite bar", 1]]},
             {"id": 1357, "name": "Adamant axe", "type": "smithing_adamant", "level": 71, "ing": [[2361, "Adamantite bar", 1]]},
@@ -308,6 +437,8 @@
             {"id": 1073, "name": "Adamant platelegs", "type": "smithing_adamant", "level": 86, "ing": [[2361, "Adamantite bar", 3]]},
             {"id": 1091, "name": "Adamant plateskirt", "type": "smithing_adamant", "level": 86, "ing": [[2361, "Adamantite bar", 3]]},
             {"id": 1123, "name": "Adamant platebody", "type": "smithing_adamant", "level": 88, "ing": [[2361, "Adamantite bar", 5]]},
+
+            // Smithing: Runite
             {"id": 2363, "name": "Runite bar", "type": "smithing_runite", "level": 85, "ing": [[451, "Runite ore", 1], [453, "Coal", 8]]},
             {"id": 1215, "name": "Rune dagger", "type": "smithing_runite", "level": 85, "ing": [[2363, "Runite bar", 1]]},
             {"id": 1359, "name": "Rune axe", "type": "smithing_runite", "level": 86, "ing": [[2363, "Runite bar", 1]]},
@@ -323,6 +454,8 @@
             {"id": 1079, "name": "Rune platelegs", "type": "smithing_runite", "level": 99, "ing": [[2363, "Runite bar", 3]]},
             {"id": 1093, "name": "Rune plateskirt", "type": "smithing_runite", "level": 99, "ing": [[2363, "Runite bar", 3]]},
             {"id": 1127, "name": "Rune platebody", "type": "smithing_runite", "level": 99, "ing": [[2363, "Runite bar", 5]]},
+
+            // Crafting: Jewelry & Gems
             {"id": 1607, "name": "Sapphire", "type": "crafting_jewelry", "level": 20, "ing": [[1623, "Uncut sapphire", 1]]},
             {"id": 1605, "name": "Emerald", "type": "crafting_jewelry", "level": 27, "ing": [[1621, "Uncut emerald", 1]]},
             {"id": 1603, "name": "Ruby", "type": "crafting_jewelry", "level": 34, "ing": [[1619, "Uncut ruby", 1]]},
@@ -344,6 +477,8 @@
             {"id": 1681, "name": "Diamond amulet (u)", "type": "crafting_jewelry", "level": 70, "ing": [[2357, "Gold bar", 1], [1601, "Diamond", 1]]},
             {"id": 5523, "name": "Tiara", "type": "crafting_jewelry", "level": 23, "ing": [[2355, "Silver bar", 1]]},
             {"id": 1718, "name": "Unstrung holy symbol", "type": "crafting_jewelry", "level": 16, "ing": [[2355, "Silver bar", 1]]},
+
+            // Crafting: Leather
             {"id": 1059, "name": "Leather gloves", "type": "crafting_leather", "level": 1, "ing": [[1741, "Leather", 1]]},
             {"id": 1061, "name": "Leather boots", "type": "crafting_leather", "level": 7, "ing": [[1741, "Leather", 1]]},
             {"id": 1167, "name": "Leather cowl", "type": "crafting_leather", "level": 9, "ing": [[1741, "Leather", 1]]},
@@ -351,6 +486,8 @@
             {"id": 1129, "name": "Leather body", "type": "crafting_leather", "level": 14, "ing": [[1741, "Leather", 1]]},
             {"id": 1095, "name": "Leather chaps", "type": "crafting_leather", "level": 18, "ing": [[1741, "Leather", 1]]},
             {"id": 1131, "name": "Hardleather body", "type": "crafting_leather", "level": 28, "ing": [[1743, "Hard leather", 1]]},
+
+            // Cooking
             {"id": 315, "name": "Shrimps", "type": "cooking", "level": 1, "ing": [[317, "Raw shrimps", 1]]},
             {"id": 319, "name": "Anchovies", "type": "cooking", "level": 1, "ing": [[321, "Raw anchovies", 1]]},
             {"id": 329, "name": "Salmon", "type": "cooking", "level": 25, "ing": [[331, "Raw salmon", 1]]},
@@ -370,7 +507,15 @@
             {"id": 2293, "name": "Meat pizza", "type": "cooking", "level": 45, "ing": [[2289, "Plain pizza", 1], [2142, "Cooked meat", 1]]},
             {"id": 2297, "name": "Anchovy pizza", "type": "cooking", "level": 55, "ing": [[2289, "Plain pizza", 1], [319, "Anchovies", 1]]},
             {"id": 2011, "name": "Uncooked stew", "type": "cooking", "level": 25, "ing": [[1923, "Bowl of water", 1], [2146, "Meat", 1], [1942, "Potato", 1]]},
-            {"id": 2108, "name": "Cake", "type": "cooking", "level": 40, "ing": [[1933, "Pot of flour", 1], [1927, "Bucket of milk", 1], [1940, "Egg", 1]]}
+            {"id": 2108, "name": "Cake", "type": "cooking", "level": 40, "ing": [[1933, "Pot of flour", 1], [1927, "Bucket of milk", 1], [1940, "Egg", 1]]},
+
+            // Runecrafting
+            {"id": 556, "name": "Air rune", "type": "runecrafting", "level": 1, "ing": [[1436, "Rune essence", 1]]},
+            {"id": 558, "name": "Mind rune", "type": "runecrafting", "level": 2, "ing": [[1436, "Rune essence", 1]]},
+            {"id": 555, "name": "Water rune", "type": "runecrafting", "level": 5, "ing": [[1436, "Rune essence", 1]]},
+            {"id": 557, "name": "Earth rune", "type": "runecrafting", "level": 9, "ing": [[1436, "Rune essence", 1]]},
+            {"id": 554, "name": "Fire rune", "type": "runecrafting", "level": 14, "ing": [[1436, "Rune essence", 1]]},
+            {"id": 559, "name": "Body rune", "type": "runecrafting", "level": 20, "ing": [[1436, "Rune essence", 1]]}
         ];
 
         let cachedItemsMap = {};
@@ -381,8 +526,9 @@
         let priceChartObj = null;
         let volumeChartObj = null;
         let currentItemId = null;
-        let currentCategory = "home";
-        let currentParentSkill = "smithing";
+        
+        let currentView = "home";
+        let currentProductionCategory = "smithing";
         let currentSubFilter = "all";
         let sortField = "volume";
         let sortAsc = false;
@@ -399,39 +545,67 @@
             return isNaN(parsed) ? 0 : parsed;
         };
 
+        function getRunecraftYield(runeType, level) {
+            const rules = {
+                'air':   { base: 1,  interval: 11 },
+                'mind':  { base: 2,  interval: 14 },
+                'water': { base: 5,  interval: 14 },
+                'earth': { base: 9,  interval: 14 },
+                'fire':  { base: 14, interval: 14 },
+                'body':  { base: 20, interval: 14 }
+            };
+            let rule = rules[runeType];
+            if (!rule) return 1;
+            if (level < rule.base) return 1;
+            return 1 + Math.floor((level - rule.base) / rule.interval);
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+            setTimeout(() => {
+                if (currentView === 'home' && homeDataCache) {
+                    renderHomeView(homeDataCache);
+                }
+            }, 300);
+        }
+
+        function toggleProductionMenu() {
+            const submenu = document.getElementById('productionSubmenu');
+            submenu.classList.toggle('open');
+        }
+
+        function toggleSubmenu(submenuId) {
+            const element = document.getElementById(submenuId);
+            element.classList.toggle('open');
+        }
+
         function getOptimalItemCount() {
             let containerWidth = document.body.clientWidth - 40; 
             let cols = Math.floor((containerWidth + 8) / 173);
             cols = Math.max(2, cols); 
-            
             let count = cols;
-            while (count < 20) {
-                count += cols;
-            }
+            while (count < 20) { count += cols; }
             return count;
         }
 
         function calculateDataRating(item) {
-            let rating = "Poor";
-            let cssClass = "neg-highlight";
-            let desc = "";
-            let vol = item.volume;
-            
+            let rating = "Poor", cssClass = "neg-highlight", desc = "", vol = item.volume;
             if (vol > 50000 && item.margin > 0) {
                 rating = "Excellent"; cssClass = "highlight";
-                desc = `🔥 Heavy market activity (${vol.toLocaleString()} traded in 24h). Offers fill instantly with zero tracking lag, making it a prime candidate for rapid turns.`;
+                desc = `🔥 Heavy market activity (${vol.toLocaleString()} traded in 24h). Offers fill instantly with zero tracking lag.`;
             } else if (vol > 5000) {
                 rating = "Good"; cssClass = "highlight";
-                desc = `🟢 Healthy liquidity (${vol.toLocaleString()} trades in 24h). Reliable volume ensures buy and sell orders clear smoothly without getting trapped.`;
+                desc = `🟢 Healthy liquidity (${vol.toLocaleString()} trades in 24h). Reliable volume ensures buy and sell orders clear smoothly.`;
             } else if (vol > 1000) {
                 rating = "Fair"; cssClass = "tax-text";
-                desc = `🟡 Moderate movement (${vol.toLocaleString()} trades in 24h). Orders will clear, but expect occasional wait times on your buy or sell limits.`;
+                desc = `🟡 Moderate movement (${vol.toLocaleString()} trades in 24h). Expect occasional wait times on limits.`;
             } else if (vol < 100) {
                 rating = "Stale"; cssClass = "neg-highlight";
-                desc = `⚠️ Dangerously low volume (${vol.toLocaleString()} traded in 24h). Margins look high on paper, but low turnover risks trapping your cash or walking into sudden price dumps.`;
+                desc = `⚠️ Dangerously low volume (${vol.toLocaleString()} traded in 24h). High turnover risks trapping your cash.`;
             } else {
                 rating = "Poor"; cssClass = "neg-highlight";
-                desc = `⚠️ Slow turnover (${vol.toLocaleString()} trades in 24h). Thin trading volume means high price volatility and extended offer wait times.`;
+                desc = `⚠️ Slow turnover (${vol.toLocaleString()} trades in 24h). Thin volume means high price volatility.`;
             }
             return { text: rating, class: cssClass, description: desc };
         }
@@ -456,8 +630,7 @@
             if (item.limit > 0 && item.volume >= item.limit) score += 10;
             score = Math.max(5, Math.min(99, score));
 
-            let rating = "Low";
-            let badgeClass = "neg-highlight";
+            let rating = "Low", badgeClass = "neg-highlight";
             if (score >= 70) { rating = "High"; badgeClass = "highlight"; } 
             else if (score >= 45) { rating = "Medium"; badgeClass = "tax-text"; }
 
@@ -527,7 +700,7 @@
                 let margin = 0;
 
                 if (buy > 0 && sell > 0) {
-                    if (id === 13190) { // Old School Bond ID (accounts for 10% un-binding fee + 1% tax)
+                    if (id === 13190) {
                         let unbindFee = Math.floor(sell * 0.10);
                         margin = sell - buy - tax - unbindFee;
                     } else {
@@ -536,7 +709,6 @@
                 }
 
                 let alchProfit = (alchVal > 0 && buy > 0) ? (alchVal - buy - 561) : 0;
-
                 let currentMid = (sell + buy) / 2;
                 let pastMid = (avgHigh24 + avgLow24) / 2;
                 let trend = "Stable", trendClass = "tax-text", trendIcon = "⚖️";
@@ -571,11 +743,11 @@
         }
 
         async function getCalculatedRecipes() {
-            if (cachedRecipes) return cachedRecipes;
             let itemLookup = await loadMarketData();
             let mapping = await fetchWikiMapping();
             let natureRune = itemLookup[561];
             let naturePrice = natureRune ? natureRune.low : 561;
+            let playerRcLevel = safeInt(document.getElementById('rcPlayerLevel')?.value) || 1;
 
             let output = [];
             F2P_RECIPES.forEach(recipe => {
@@ -583,6 +755,11 @@
                 if (!product || product.high <= 0) return;
 
                 let yieldQty = recipe.yield_amount || 1;
+                if (recipe.type === 'runecrafting') {
+                    let subType = recipe.name.toLowerCase().split(' ')[0];
+                    yieldQty = getRunecraftYield(subType, playerRcLevel);
+                }
+
                 let ingredients = [];
                 let cost = 0;
                 let valid = true;
@@ -622,7 +799,6 @@
                 });
             });
 
-            cachedRecipes = output;
             return output;
         }
 
@@ -633,7 +809,6 @@
                 renderHomeView(Object.values(itemsMap));
             } catch (err) {
                 document.getElementById('recContainer').innerHTML = `<div class="error-overlay">❌ Initialization Failed: ${err.message}</div>`;
-                document.getElementById('overnightContainer').innerHTML = `<div class="error-overlay">❌ Failed to load overnight data.</div>`;
             }
         }
 
@@ -649,57 +824,106 @@
             if (btn) { btn.innerText = currentViewMode === 'grid' ? '📄 Table View' : '🔲 Grid View'; }
         }
 
+        function switchView(viewName, btn) {
+            currentView = viewName;
+            currentPage = 1;
+            document.querySelectorAll('.sidebar-menu .nav-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+
+            document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+            document.getElementById('view-' + viewName).classList.add('active');
+
+            document.getElementById('sidebar').classList.remove('open');
+
+            if (viewName === 'home') {
+                loadMarketData().then(itemsMap => renderHomeView(Object.values(itemsMap)));
+            } else if (viewName === 'flips') {
+                sortField = "volume"; sortAsc = false;
+                document.getElementById('tableHeaders').innerHTML = `
+                    <th>Icon</th><th onclick="toggleSort('name')">Item ↕</th><th onclick="toggleSort('buy')">Buy ↕</th><th onclick="toggleSort('sell')">Sell ↕</th>
+                    <th onclick="toggleSort('tax')">Tax ↕</th><th onclick="toggleSort('margin')">Profit ↕</th><th onclick="toggleSort('trend')">24h Trend ↕</th>
+                    <th onclick="toggleSort('aiScore')">AI Confidence ↕</th><th onclick="toggleSort('volume')">Volume ↕</th><th onclick="toggleSort('limit')">Limit ↕</th>
+                `;
+                filterAndSortData();
+            } else if (viewName === 'alch') {
+                sortField = "alch_profit"; sortAsc = false;
+                filterAndSortData();
+            }
+        }
+
+        function setProductionCategory(category, filter, btn) {
+            currentView = "production";
+            currentProductionCategory = category;
+            currentSubFilter = filter;
+            currentPage = 1;
+
+            document.querySelectorAll('.sidebar-menu .nav-btn, .sub-nav-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            document.getElementById('prodMenuBtn').classList.add('active');
+
+            document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+            document.getElementById('view-production').classList.add('active');
+
+            let titleName = "Production & Crafting Hub";
+            let searchInputContainer = document.getElementById('prodControlsContainer');
+            let rcConfigEl = document.getElementById('rcLevelConfigContainer');
+
+            if (filter.startsWith('crafting_')) titleName = "Crafting Hub (" + filter.replace('crafting_', '').toUpperCase() + ")";
+            else if (filter.startsWith('smithing_')) titleName = "Smithing Hub (" + filter.replace('smithing_', '').toUpperCase() + ")";
+            else if (category === 'cooking') titleName = "Cooking Hub";
+            else if (category === 'runecrafting') titleName = "Runecrafting Hub";
+            
+            document.getElementById('productionTitle').innerText = titleName;
+
+            // Handle visibility for runecrafting controls (hide search bar, show RC level input)
+            if (category === 'runecrafting') {
+                searchInputContainer.style.display = 'none';
+                rcConfigEl.style.display = 'flex';
+            } else {
+                searchInputContainer.style.display = 'flex';
+                rcConfigEl.style.display = 'none';
+            }
+
+            document.getElementById('sidebar').classList.remove('open');
+            sortField = "level"; sortAsc = false;
+            filterAndSortData();
+        }
+
         function renderHomeView(items) {
             homeDataCache = items;
-            let limit = getOptimalItemCount();
-
-            let recSummary = document.getElementById('recSummary');
-            let overSummary = document.getElementById('overnightSummary');
-            if (recSummary) recSummary.innerText = `⚡ Top ${limit} Recommended Flips`;
-            if (overSummary) overSummary.innerText = `🌙 Top ${limit} Overnight Flips (Passive)`;
+            let targetCount = getOptimalItemCount();
 
             let usable = items.filter(x => x.buy > 0 && x.sell > 0 && x.margin > 0 && x.volume > 100 && x.dataRatingText !== 'Stale' && x.dataRatingText !== 'Poor');
 
-            let general = [...usable].sort((a, b) => {
+            let sorted = [...usable].sort((a, b) => {
                 let capA = a.limit > 0 ? Math.min(a.limit, a.volume / 6) : (a.volume / 6);
                 let capB = b.limit > 0 ? Math.min(b.limit, b.volume / 6) : (b.volume / 6);
-                let scoreA = (a.margin * capA) * (a.aiScore / 100);
-                let scoreB = (b.margin * capB) * (b.aiScore / 100);
-                return scoreB - scoreA;
-            }).slice(0, limit);
+                return ((b.margin * capB) * (b.aiScore / 100)) - ((a.margin * capA) * (a.aiScore / 100));
+            });
 
-            let overnight = [...usable].filter(x => x.margin >= 10).sort((a, b) => {
-                let capA = a.limit > 0 ? Math.min(a.limit * 2, a.volume / 3) : (a.volume / 3);
-                let capB = b.limit > 0 ? Math.min(b.limit * 2, b.volume / 3) : (b.volume / 3);
-                let scoreA = (a.margin * capA * 1.5) * (a.aiScore / 100);
-                let scoreB = (b.margin * capB * 1.5) * (b.aiScore / 100);
-                return scoreB - scoreA;
-            }).slice(0, limit);
+            if (sorted.length < targetCount) {
+                let fallback = items.filter(x => x.buy > 0 && x.sell > 0 && x.margin > 0 && !sorted.includes(x));
+                fallback.sort((a, b) => b.margin - a.margin);
+                sorted = [...sorted, ...fallback];
+            }
 
-            populateHomeCards('recContainer', general, false);
-            populateHomeCards('overnightContainer', overnight, true);
+            let finalRecommendations = sorted.slice(0, targetCount);
+            document.getElementById('recSummary').innerText = `⚡ Top ${finalRecommendations.length} Recommended Flips`;
+
+            populateHomeCards('recContainer', finalRecommendations, false);
         }
 
         function populateHomeCards(containerId, data, isOvernight) {
             const container = document.getElementById(containerId);
-            if (!data || data.length === 0) {
-                container.innerHTML = `<div class="loading-overlay">No data available</div>`;
-                return;
-            }
+            if (!data || data.length === 0) { container.innerHTML = `<div class="loading-overlay">No data available</div>`; return; }
             container.innerHTML = "";
             data.forEach((item, idx) => {
                 let div = document.createElement('div');
                 div.className = "card";
                 div.onclick = () => openGraph(item);
-                
-                let cap = item.limit > 0 
-                    ? Math.min(item.limit * (isOvernight ? 2 : 1), item.volume / (isOvernight ? 3 : 6)) 
-                    : (item.volume / (isOvernight ? 3 : 6));
-                
+                let cap = item.limit > 0 ? Math.min(item.limit, item.volume / 6) : (item.volume / 6);
                 let potProfit = Math.floor(item.margin * cap);
-                let timeLabel = isOvernight ? "Est 8h Profit" : "Est 4h Profit";
-                let marginClass = item.margin > 0 ? "highlight" : "neg-highlight";
-                let marginSign = item.margin > 0 ? "+" : "";
+                let timeLabel = "Est 4h Profit";
 
                 div.innerHTML = `
                     <div class="card-header">
@@ -707,122 +931,18 @@
                         <div class="card-title">${idx + 1}. ${item.name}</div>
                     </div>
                     <div style="width: 100%;">
-                        <div class="card-row">
-                            <span class="label">Buy / Sell:</span>
-                            <span>${item.buy.toLocaleString()} / ${item.sell.toLocaleString()}</span>
-                        </div>
-                        <div class="card-row">
-                            <span class="label">Margin:</span>
-                            <span class="${marginClass}">${marginSign}${item.margin.toLocaleString()} gp (${item.roiPct}%)</span>
-                        </div>
-                        <div class="card-row">
-                            <span class="label">Vol / Limit:</span>
-                            <span>${item.volume.toLocaleString()} / ${item.limit.toLocaleString()}</span>
-                        </div>
+                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${item.buy.toLocaleString()} / ${item.sell.toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Margin:</span><span class="highlight">+${item.margin.toLocaleString()} gp (${item.roiPct}%)</span></div>
+                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${item.volume.toLocaleString()} / ${item.limit.toLocaleString()}</span></div>
                         <div class="card-badges">
                             <span class="badge ${item.trendClass}">${item.trendIcon} ${item.trend}</span>
                             <span class="badge ${item.dataRatingClass}">Data: ${item.dataRatingText}</span>
                         </div>
-                        <div class="card-footer">
-                            ${timeLabel}: ~${potProfit.toLocaleString()} gp
-                        </div>
+                        <div class="card-footer">${timeLabel}: ~${potProfit.toLocaleString()} gp</div>
                     </div>
                 `;
                 container.appendChild(div);
             });
-        }
-
-        function setParentSkill(skill, btn) {
-            currentParentSkill = skill;
-            document.querySelectorAll('.parent-sub-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentSubFilter = "all";
-            currentPage = 1;
-            const smithingTabs = document.getElementById('smithingSubTabs');
-            const craftingTabs = document.getElementById('craftingSubTabs');
-
-            smithingTabs.style.display = "none";
-            craftingTabs.style.display = "none";
-
-            if (skill === 'smithing') {
-                smithingTabs.style.display = "flex";
-                smithingTabs.querySelector('.child-sub-btn').classList.add('active');
-            } else if (skill === 'crafting') {
-                craftingTabs.style.display = "flex";
-                craftingTabs.querySelector('.child-sub-btn').classList.add('active');
-            }
-            filterAndSortData();
-        }
-
-        function setSubFilter(filter, btn) {
-            currentSubFilter = filter;
-            currentPage = 1;
-            let parentContainer = btn.parentElement;
-            parentContainer.querySelectorAll('.child-sub-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            filterAndSortData();
-        }
-
-        async function setCategory(cat, btn) {
-            currentCategory = cat;
-            currentPage = 1;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            
-            const homeSections = document.getElementById('homeSectionsContainer');
-            const tableWrapper = document.getElementById('searchAndTableWrapper');
-            const parentSubTabs = document.getElementById('parentSubTabs');
-            const smithingTabs = document.getElementById('smithingSubTabs');
-            const craftingTabs = document.getElementById('craftingSubTabs');
-
-            parentSubTabs.style.display = "none";
-            smithingTabs.style.display = "none";
-            craftingTabs.style.display = "none";
-
-            if (cat === 'home') {
-                homeSections.style.display = "block";
-                tableWrapper.style.display = "none";
-                try {
-                    let itemsMap = await loadMarketData();
-                    renderHomeView(Object.values(itemsMap));
-                } catch (err) {
-                    document.getElementById('recContainer').innerHTML = `<div class="error-overlay">❌ ${err.message}</div>`;
-                }
-            } else {
-                homeSections.style.display = "none";
-                tableWrapper.style.display = "block";
-
-                if (cat === 'alch') {
-                    sortField = "alch_profit"; sortAsc = false;
-                    document.getElementById('tableHeaders').innerHTML = `
-                        <th>Icon</th><th onclick="toggleSort('name')">Item ↕</th><th onclick="toggleSort('buy')">Buy Price ↕</th>
-                        <th onclick="toggleSort('alch_value')">Alch Value ↕</th><th onclick="toggleSort('alch_profit')">Profit/Cast ↕</th><th onclick="toggleSort('limit')">Limit ↕</th>
-                    `;
-                } else if (cat === 'crafting') {
-                    parentSubTabs.style.display = "flex";
-                    if (currentParentSkill === 'smithing') smithingTabs.style.display = "flex";
-                    if (currentParentSkill === 'crafting') craftingTabs.style.display = "flex";
-                    sortField = "level"; sortAsc = false;
-                    document.getElementById('tableHeaders').innerHTML = `
-                        <th>Icon</th><th onclick="toggleSort('name')">Product ↕</th><th onclick="toggleSort('level')">Lvl ↕</th>
-                        <th>Ingredients Required</th><th onclick="toggleSort('cost')">Craft Cost ↕</th><th onclick="toggleSort('sell')">Sell Price ↕</th>
-                        <th onclick="toggleSort('profit')">GE Profit ↕</th><th onclick="toggleSort('alch_profit')">Alch Profit ↕</th>
-                    `;
-                } else {
-                    sortField = "volume"; sortAsc = false;
-                    document.getElementById('tableHeaders').innerHTML = `
-                        <th>Icon</th><th onclick="toggleSort('name')">Item ↕</th><th onclick="toggleSort('buy')">Buy ↕</th><th onclick="toggleSort('sell')">Sell ↕</th>
-                        <th onclick="toggleSort('tax')">Tax ↕</th><th onclick="toggleSort('margin')">Profit ↕</th><th onclick="toggleSort('trend')">24h Trend ↕</th>
-                        <th onclick="toggleSort('aiScore')">AI Confidence ↕</th><th onclick="toggleSort('volume')">Volume ↕</th><th onclick="toggleSort('limit')">Limit ↕</th>
-                    `;
-                }
-                
-                try { await filterAndSortData(); } 
-                catch (err) {
-                    document.getElementById('tableBody').innerHTML = `<tr><td colspan="10" class="error-overlay">❌ Table Error: ${err.message}</td></tr>`;
-                    document.getElementById('gridContainerEl').innerHTML = `<div class="error-overlay">❌ Grid Error: ${err.message}</div>`;
-                }
-            }
         }
 
         function toggleSort(field) {
@@ -835,54 +955,51 @@
         function changePage(direction) {
             currentPage += direction;
             filterAndSortData();
-            let tableCont = document.getElementById('tableContainerEl');
-            let gridCont = document.getElementById('gridContainerEl');
-            if (tableCont.style.display !== 'none') tableCont.scrollTop = 0;
-            if (gridCont.style.display !== 'none') window.scrollTo(0, 0);
         }
 
-        function getVolumeColor(vol) {
-            if (vol <= 0) return '#FF5252';
-            let logVol = Math.log10(vol + 1);
-            let maxLog = Math.log10(1000000 + 1);
-            let t = Math.min(logVol / maxLog, 1);
-            let r, g, b;
-            if (t < 0.5) {
-                let subT = t * 2; r = 255; g = Math.round(82 + (235 - 82) * subT); b = Math.round(82 + (59 - 82) * subT);
-            } else {
-                let subT = (t - 0.5) * 2; r = Math.round(255 + (0 - 255) * subT); g = Math.round(235 + (230 - 235) * subT); b = Math.round(59 + (118 - 59) * subT);
-            }
-            return `rgb(${r}, ${g}, ${b})`;
-        }
-
-        function getProfitColorHex(margin) {
-            if (margin < 0) return '#FF5252';
-            if (margin === 0) return '#FF9800';
-            return '#00E676';
+        function changePageSize() {
+            let select = document.getElementById('pageSizeSelect');
+            pageSize = parseInt(select.value) || 25;
+            currentPage = 1;
+            filterAndSortData();
         }
 
         async function filterAndSortData() {
             try {
                 let sourceData = [];
-                if (currentCategory === 'crafting') { sourceData = await getCalculatedRecipes(); } 
-                else { let itemsMap = await loadMarketData(); sourceData = Object.values(itemsMap); }
+                let query = "";
 
-                const query = document.getElementById('searchInput').value.toUpperCase();
-                
+                if (currentView === 'production') {
+                    sourceData = await getCalculatedRecipes();
+                    if (currentProductionCategory !== 'runecrafting') {
+                        query = document.getElementById('searchProdInput').value.toUpperCase();
+                    }
+                } else if (currentView === 'alch') {
+                    let itemsMap = await loadMarketData();
+                    sourceData = Object.values(itemsMap).filter(x => x.alch_value > 0);
+                    query = document.getElementById('searchAlchInput').value.toUpperCase();
+                } else if (currentView === 'flips') {
+                    let itemsMap = await loadMarketData();
+                    sourceData = Object.values(itemsMap);
+                    query = document.getElementById('searchFlipsInput').value.toUpperCase();
+                }
+
                 let filtered = sourceData.filter(item => {
-                    let matchesSearch = item.name.toUpperCase().includes(query);
-                    if (currentCategory === 'crafting') {
-                        if (currentParentSkill === 'smithing') {
+                    let matchesSearch = query === "" || item.name.toUpperCase().includes(query);
+                    if (currentView === 'production') {
+                        if (currentProductionCategory === 'smithing') {
                             if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('smithing_');
                             return matchesSearch && (item.type === currentSubFilter);
-                        } else if (currentParentSkill === 'crafting') {
+                        } else if (currentProductionCategory === 'crafting') {
                             if (currentSubFilter === 'all') return matchesSearch && item.type.startsWith('crafting_');
                             return matchesSearch && (item.type === currentSubFilter);
-                        } else if (currentParentSkill === 'cooking') { return matchesSearch && (item.type === 'cooking'); }
+                        } else if (currentProductionCategory === 'cooking') { 
+                            return matchesSearch && (item.type === 'cooking'); 
+                        } else if (currentProductionCategory === 'runecrafting') {
+                            return matchesSearch && (item.type === 'runecrafting');
+                        }
                     }
-                    let matchesCat = true;
-                    if (currentCategory === 'alch') matchesCat = (item.alch_value > 0);
-                    return matchesSearch && matchesCat;
+                    return matchesSearch;
                 });
 
                 filtered.sort((a, b) => {
@@ -892,83 +1009,90 @@
                     return sortAsc ? valA - valB : valB - valA;
                 });
 
-                if (currentViewMode === 'grid') {
-                    let containerWidth = document.body.clientWidth - 40; 
-                    let cols = Math.floor((containerWidth + 8) / 173);
-                    cols = Math.max(2, cols); 
-                    pageSize = cols * 4; // Exactly 4 rows per page in grid view
-                } else {
-                    pageSize = 25;
-                }
-
-                let totalPages = Math.ceil(filtered.length / pageSize) || 1;
+                let effectivePageSize = (currentView === 'flips' && currentViewMode === 'grid') ? Math.max(pageSize, 24) : pageSize;
+                let totalPages = Math.ceil(filtered.length / effectivePageSize) || 1;
                 if (currentPage > totalPages) currentPage = totalPages;
                 if (currentPage < 1) currentPage = 1;
 
-                let start = (currentPage - 1) * pageSize;
-                let paginatedData = filtered.slice(start, start + pageSize);
+                let start = (currentPage - 1) * effectivePageSize;
+                let paginatedData = filtered.slice(start, start + effectivePageSize);
 
-                document.getElementById('pageIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
-                
-                let tableCont = document.getElementById('tableContainerEl');
-                let gridCont = document.getElementById('gridContainerEl');
-
-                if (currentViewMode === 'grid') {
-                    tableCont.style.display = 'none';
-                    gridCont.style.display = 'grid';
-                    renderGrid(paginatedData);
-                } else {
-                    gridCont.style.display = 'none';
-                    tableCont.style.display = 'block';
-                    renderTable(paginatedData);
+                if (currentView === 'flips') {
+                    document.getElementById('pageFlipsIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
+                    if (currentViewMode === 'grid') {
+                        document.getElementById('tableContainerEl').style.display = 'none';
+                        document.getElementById('gridContainerEl').style.display = 'grid';
+                        renderGrid(paginatedData);
+                    } else {
+                        document.getElementById('gridContainerEl').style.display = 'none';
+                        document.getElementById('tableContainerEl').style.display = 'block';
+                        renderFlipsTable(paginatedData);
+                    }
+                } else if (currentView === 'alch') {
+                    document.getElementById('pageAlchIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
+                    renderAlchTable(paginatedData);
+                } else if (currentView === 'production') {
+                    document.getElementById('pageProdIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
+                    renderProductionTable(paginatedData);
                 }
-                
-            } catch (err) { console.error("Data sorting error:", err); }
+            } catch (err) { console.error("Filtering error:", err); }
         }
 
-        function renderTable(data) {
+        function renderFlipsTable(data) {
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = "";
-            if (!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="10" class="loading-overlay">No matching items found</td></tr>`; return; }
-            
+            if (!data.length) { tbody.innerHTML = `<tr><td colspan="10" class="loading-overlay">No items found</td></tr>`; return; }
             data.forEach(item => {
                 let tr = document.createElement('tr');
                 tr.onclick = () => openGraph(item);
-                
-                if (currentCategory === 'alch') {
-                    let alchClass = item.alch_profit > 0 ? "alch-highlight" : "neg-highlight";
-                    let alchSign = item.alch_profit > 0 ? "+" : "";
-                    tr.innerHTML = `
-                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
-                        <td><b>${item.name}</b></td><td>${item.buy.toLocaleString()}</td><td>${item.alch_value.toLocaleString()}</td>
-                        <td class="${alchClass}">${alchSign}${item.alch_profit.toLocaleString()}</td><td>${item.limit.toLocaleString()}</td>
-                    `;
-                } else if (currentCategory === 'crafting') {
-                    let profitClass = item.profit > 0 ? "highlight" : "neg-highlight";
-                    let profitSign = item.profit > 0 ? "+" : "";
-                    let alchClass = item.alch_profit > 0 ? "alch-highlight" : "neg-highlight";
-                    let alchSign = item.alch_profit > 0 ? "+" : "";
-                    let ingText = item.ingredients.map(ing => `${ing.quantity}x ${ing.name}`).join(', ');
-                    let yieldText = item.yield_amount > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield_amount}x)</span>` : "";
+                let marginSign = item.margin > 0 ? "+" : "";
+                tr.innerHTML = `
+                    <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon"></td>
+                    <td><b>${item.name}</b></td><td>${item.buy.toLocaleString()}</td><td>${item.sell.toLocaleString()}</td>
+                    <td class="tax-text">${item.tax > 0 ? '-' + item.tax.toLocaleString() : '0'}</td><td class="${item.margin > 0 ? 'highlight' : 'neg-highlight'}">${marginSign}${item.margin.toLocaleString()}</td>
+                    <td class="${item.trendClass}">${item.trendIcon} ${item.trend}</td><td class="${item.aiBadgeClass}">${item.aiRating} (${item.aiScore})</td>
+                    <td>${item.volume.toLocaleString()}</td><td>${item.limit.toLocaleString()}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
 
-                    tr.innerHTML = `
-                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
-                        <td><b>${item.name}</b>${yieldText}</td><td><span style="color:#FF9800; font-weight:bold;">${item.level}</span></td>
-                        <td class="ing-text">${ingText}</td><td>${item.cost.toLocaleString()}</td><td>${item.sell.toLocaleString()}</td>
-                        <td class="${profitClass}">${profitSign}${item.profit.toLocaleString()}</td><td class="${alchClass}">${alchSign}${item.alch_profit.toLocaleString()}</td>
-                    `;
-                } else {
-                    let volColor = getVolumeColor(item.volume);
-                    let marginClass = item.margin > 0 ? "highlight" : "neg-highlight";
-                    let marginSign = item.margin > 0 ? "+" : "";
-                    tr.innerHTML = `
-                        <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"></td>
-                        <td><b>${item.name}</b></td><td>${item.buy.toLocaleString()}</td><td>${item.sell.toLocaleString()}</td>
-                        <td class="tax-text">${item.tax > 0 ? '-' + item.tax.toLocaleString() : '0'}</td><td class="${marginClass}">${marginSign}${item.margin.toLocaleString()}</td>
-                        <td class="${item.trendClass}">${item.trendIcon} ${item.trend}</td><td class="${item.aiBadgeClass}">${item.aiRating} (${item.aiScore})</td>
-                        <td><span style="color: ${volColor}; font-weight: bold;">${item.volume.toLocaleString()}</span></td><td>${item.limit.toLocaleString()}</td>
-                    `;
-                }
+        function renderAlchTable(data) {
+            const tbody = document.getElementById('alchTableBody');
+            tbody.innerHTML = "";
+            if (!data.length) { tbody.innerHTML = `<tr><td colspan="6" class="loading-overlay">No alch items found</td></tr>`; return; }
+            data.forEach(item => {
+                let tr = document.createElement('tr');
+                tr.onclick = () => openGraph(item);
+                let alchSign = item.alch_profit > 0 ? "+" : "";
+                tr.innerHTML = `
+                    <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon"></td>
+                    <td><b>${item.name}</b></td><td>${item.buy.toLocaleString()}</td><td>${item.alch_value.toLocaleString()}</td>
+                    <td class="${item.alch_profit > 0 ? 'alch-highlight' : 'neg-highlight'}">${alchSign}${item.alch_profit.toLocaleString()}</td><td>${item.limit.toLocaleString()}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderProductionTable(data) {
+            const tbody = document.getElementById('productionTableBody');
+            tbody.innerHTML = "";
+            if (!data.length) { tbody.innerHTML = `<tr><td colspan="8" class="loading-overlay">No recipes found</td></tr>`; return; }
+            data.forEach(item => {
+                let tr = document.createElement('tr');
+                tr.onclick = () => openGraph(item);
+                let profitSign = item.profit > 0 ? "+" : "";
+                let alchSign = item.alch_profit > 0 ? "+" : "";
+                let ingText = item.ingredients.map(ing => `${ing.quantity}x ${ing.name}`).join(', ');
+                let yieldText = item.yield_amount > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield_amount}x)</span>` : "";
+
+                tr.innerHTML = `
+                    <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon"></td>
+                    <td><b>${item.name}</b>${yieldText}</td><td><span style="color:#FF9800; font-weight:bold;">${item.level}</span></td>
+                    <td class="ing-text">${ingText}</td><td>${item.cost.toLocaleString()}</td><td>${item.sell.toLocaleString()}</td>
+                    <td class="${item.profit > 0 ? 'highlight' : 'neg-highlight'}">${profitSign}${item.profit.toLocaleString()}</td>
+                    <td class="${item.alch_profit > 0 ? 'alch-highlight' : 'neg-highlight'}">${alchSign}${item.alch_profit.toLocaleString()}</td>
+                `;
                 tbody.appendChild(tr);
             });
         }
@@ -976,57 +1100,22 @@
         function renderGrid(data) {
             const grid = document.getElementById('gridContainerEl');
             grid.innerHTML = "";
-            if (!data || data.length === 0) { grid.innerHTML = `<div class="loading-overlay" style="grid-column: 1 / -1;">No matching items found</div>`; return; }
-
-            data.forEach((item, idx) => {
+            if (!data.length) { grid.innerHTML = `<div class="loading-overlay" style="grid-column: 1 / -1;">No items found</div>`; return; }
+            data.forEach(item => {
                 let div = document.createElement('div');
                 div.className = "card";
                 div.onclick = () => openGraph(item);
-                let contentHTML = "";
-
-                if (currentCategory === 'alch') {
-                    let alchClass = item.alch_profit > 0 ? "alch-highlight" : "neg-highlight";
-                    let alchSign = item.alch_profit > 0 ? "+" : "";
-                    contentHTML = `
-                        <div class="card-row"><span class="label">Buy Price:</span><span>${item.buy.toLocaleString()}</span></div>
-                        <div class="card-row"><span class="label">Alch Value:</span><span>${item.alch_value.toLocaleString()}</span></div>
-                        <div class="card-row"><span class="label">Limit:</span><span>${item.limit.toLocaleString()}</span></div>
-                        <div class="card-footer ${alchClass}">Profit/Cast: ${alchSign}${item.alch_profit.toLocaleString()} gp</div>
-                    `;
-                } else if (currentCategory === 'crafting') {
-                    let profitClass = item.profit > 0 ? "highlight" : "neg-highlight";
-                    let profitSign = item.profit > 0 ? "+" : "";
-                    let yieldText = item.yield_amount > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield_amount}x)</span>` : "";
-                    let ingText = item.ingredients.map(ing => `${ing.quantity}x ${ing.name}`).join(', ');
-                    let displayName = item.name + yieldText;
-
-                    contentHTML = `
-                        <div class="card-row"><span class="label">Level Required:</span><span style="color:#FF9800; font-weight:bold;">${item.level}</span></div>
-                        <div class="card-row"><span class="label">Craft Cost:</span><span>${item.cost.toLocaleString()}</span></div>
-                        <div class="card-row"><span class="label">Sell Price:</span><span>${item.sell.toLocaleString()}</span></div>
-                        <div class="card-row" style="flex-direction:column; gap:4px; margin: 6px 0;">
-                            <span class="label">Ingredients:</span>
-                            <span class="ing-text" style="line-height:1.2;">${ingText}</span>
-                        </div>
-                        <div class="card-footer ${profitClass}">GE Profit: ${profitSign}${item.profit.toLocaleString()} gp</div>
-                    `;
-                } else {
-                    let marginClass = item.margin > 0 ? "highlight" : "neg-highlight";
-                    let marginSign = item.margin > 0 ? "+" : "";
-                    contentHTML = `
+                div.innerHTML = `
+                    <div class="card-header"><img src="${item.icon}" loading="lazy" alt="icon"><div class="card-title">${item.name}</div></div>
+                    <div style="width: 100%;">
                         <div class="card-row"><span class="label">Buy / Sell:</span><span>${item.buy.toLocaleString()} / ${item.sell.toLocaleString()}</span></div>
-                        <div class="card-row"><span class="label">Margin:</span><span class="${marginClass}">${marginSign}${item.margin.toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Margin:</span><span class="${item.margin > 0 ? 'highlight' : 'neg-highlight'}">+${item.margin.toLocaleString()} gp</span></div>
                         <div class="card-row"><span class="label">Vol / Limit:</span><span>${item.volume.toLocaleString()} / ${item.limit.toLocaleString()}</span></div>
                         <div class="card-badges">
                             <span class="badge ${item.trendClass}">${item.trendIcon} ${item.trend}</span>
                             <span class="badge ${item.dataRatingClass}">Data: ${item.dataRatingText}</span>
                         </div>
-                    `;
-                }
-
-                div.innerHTML = `
-                    <div class="card-header"><img src="${item.icon}" loading="lazy" alt="Item Icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"><div class="card-title">${item.name}</div></div>
-                    <div style="width: 100%; display:flex; flex-direction:column; flex-grow:1;">${contentHTML}</div>
+                    </div>
                 `;
                 grid.appendChild(div);
             });
@@ -1038,33 +1127,18 @@
             document.getElementById('modalTitle').innerText = item.name;
             let iconEl = document.getElementById('modalIcon');
             iconEl.src = item.icon;
-            
-            let marginVal = (currentCategory === 'crafting') ? item.profit : (currentCategory === 'alch' ? item.alch_profit : item.margin);
-            let glowColor = getProfitColorHex(marginVal);
-            iconEl.style.filter = `drop-shadow(0 0 10px ${glowColor}) drop-shadow(0 0 20px ${glowColor})`;
 
             document.getElementById('modalSell').innerText = item.sell ? item.sell.toLocaleString() : '0';
             document.getElementById('modalBuy').innerText = item.buy ? item.buy.toLocaleString() : '0';
-            
-            let roiText = item.roiPct ? ` (${item.roiPct}%)` : '';
-            let mClass = marginVal > 0 ? "highlight" : "neg-highlight";
-            let mSign = marginVal > 0 ? "+" : "";
-            document.getElementById('modalMargin').innerHTML = `<span class="${mClass}">${mSign}${marginVal.toLocaleString()} gp${roiText}</span>`;
-            
+            document.getElementById('modalMargin').innerHTML = `<span class="highlight">+${(item.margin || item.profit || 0).toLocaleString()} gp</span>`;
             document.getElementById('modalVolume').innerText = item.volume ? item.volume.toLocaleString() : '0';
             document.getElementById('modalLimit').innerText = item.limit ? item.limit.toLocaleString() : '0';
+            document.getElementById('modalTrend').innerHTML = `<span class="${item.trendClass || 'tax-text'}">${item.trendIcon || '⚖️'} ${item.trend || 'Stable'}</span>`;
             
-            document.getElementById('modalTrend').innerHTML = `<span class="${item.trendClass}">${item.trendIcon || ''} ${item.trend || 'Stable'}</span>`;
-            
-            let safeDataRatingClass = item.dataRatingClass || "neg-highlight";
-            let safeDataRatingText = item.dataRatingText || "Poor";
             let ratingEl = document.getElementById('modalDataRating');
-            ratingEl.className = `tooltip-trigger ${safeDataRatingClass}`;
-            ratingEl.innerText = safeDataRatingText;
-            
-            // Hide explanation box initially
+            ratingEl.className = `tooltip-trigger ${item.dataRatingClass || 'neg-highlight'}`;
+            ratingEl.innerText = item.dataRatingText || 'Poor';
             document.getElementById('ratingExplanationBox').style.display = "none";
-
             document.getElementById('modalAlch').innerText = item.alch_value ? item.alch_value.toLocaleString() + ' gp' : '0 gp';
 
             document.getElementById('chartModal').style.display = "block";
@@ -1073,7 +1147,6 @@
                 try {
                     let historyRows = await queryTurso(`SELECT timestamp, timestep, high_price, low_price, high_volume, low_volume FROM price_history WHERE item_id = ${currentItemId} ORDER BY timestamp ASC`);
                     let times = [], highs = [], lows = [], volumes = [];
-                    
                     historyRows.forEach(r => {
                         times.push(safeInt(r[0]?.value));
                         highs.push(safeInt(r[2]?.value));
@@ -1081,9 +1154,7 @@
                         volumes.push(safeInt(r[4]?.value) + safeInt(r[5]?.value));
                     });
                     itemHistories[currentItemId] = { raw_times: times, highs: highs, lows: lows, volumes: volumes };
-                } catch (err) {
-                    console.error("Failed to fetch history from Turso:", err);
-                }
+                } catch (err) { console.error("History fetch error:", err); }
             }
             setTimeframe('48h');
         }
@@ -1091,12 +1162,8 @@
         function toggleRatingExplanation() {
             let box = document.getElementById('ratingExplanationBox');
             if (!activeModalItem) return;
-            if (box.style.display === "block") {
-                box.style.display = "none";
-            } else {
-                box.innerText = activeModalItem.dataRatingDesc || "No liquidity breakdown available.";
-                box.style.display = "block";
-            }
+            box.style.display = box.style.display === "block" ? "none" : "block";
+            box.innerText = activeModalItem.dataRatingDesc || "No liquidity breakdown available.";
         }
 
         function setTimeframe(range) {
@@ -1104,16 +1171,14 @@
                 let btn = document.getElementById('btn-' + r);
                 if (btn) btn.classList.remove('active');
             });
-            let targetBtn = document.getElementById('btn-' + range);
-            if (targetBtn) targetBtn.classList.add('active');
-            
+            document.getElementById('btn-' + range).classList.add('active');
+
             const historyData = itemHistories[currentItemId];
-            if (!historyData || !historyData.raw_times || historyData.raw_times.length === 0) return;
-            
+            if (!historyData || !historyData.raw_times.length) return;
+
             const now = historyData.raw_times[historyData.raw_times.length - 1];
             let cutoffSeconds = now;
-
-            if (range === '1h') cutoffSeconds = now - (3600);
+            if (range === '1h') cutoffSeconds = now - 3600;
             else if (range === '48h') cutoffSeconds = now - (48 * 3600);
             else if (range === '1w') cutoffSeconds = now - (7 * 24 * 3600);
             else if (range === '1m') cutoffSeconds = now - (30 * 24 * 3600);
@@ -1122,47 +1187,36 @@
 
             let collectedIndices = [];
             for (let i = 0; i < historyData.raw_times.length; i++) {
-                if (historyData.raw_times[i] >= cutoffSeconds) {
-                    collectedIndices.push(i);
-                }
+                if (historyData.raw_times[i] >= cutoffSeconds) collectedIndices.push(i);
             }
 
             if (collectedIndices.length > 10) {
-                let step = collectedIndices.length / 10;
-                let downsampled = [];
-                for (let j = 0; j < 10; j++) {
-                    let index = Math.floor(j * step);
-                    downsampled.push(collectedIndices[index]);
-                }
-                if (collectedIndices.length > 0 && downsampled[downsampled.length - 1] !== collectedIndices[collectedIndices.length - 1]) {
-                    downsampled[downsampled.length - 1] = collectedIndices[collectedIndices.length - 1];
-                }
+                let step = collectedIndices.length / 10, downsampled = [];
+                for (let j = 0; j < 10; j++) downsampled.push(collectedIndices[Math.floor(j * step)]);
+                downsampled[9] = collectedIndices[collectedIndices.length - 1];
                 collectedIndices = downsampled;
             }
 
             let filteredDates = [], filteredHighs = [], filteredLows = [], filteredVolumes = [];
-            for (let idx of collectedIndices) {
-                let t = historyData.raw_times[idx];
-                let dt = new Date(t * 1000);
-                filteredDates.push(dt.toISOString().replace('T', ' ').substring(0, 16));
+            collectedIndices.forEach(idx => {
+                filteredDates.push(new Date(historyData.raw_times[idx] * 1000).toISOString().replace('T', ' ').substring(0, 16));
                 filteredHighs.push(historyData.highs[idx]);
                 filteredLows.push(historyData.lows[idx]);
                 filteredVolumes.push(historyData.volumes[idx]);
-            }
+            });
 
             renderCharts(filteredDates, filteredHighs, filteredLows, filteredVolumes);
         }
 
         function renderCharts(dates, highs, lows, volumes) {
-            const priceCtx = document.getElementById('priceChart').getContext('2d');
             if (priceChartObj) priceChartObj.destroy();
-            priceChartObj = new Chart(priceCtx, {
+            priceChartObj = new Chart(document.getElementById('priceChart').getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: dates,
                     datasets: [
-                        { label: 'Sell (High)', data: highs, borderColor: '#00E676', borderWidth: 2, pointRadius: 3, pointHoverRadius: 8, pointHitRadius: 35, tension: 0.45 },
-                        { label: 'Buy (Low)', data: lows, borderColor: '#FF5252', borderWidth: 2, pointRadius: 3, pointHoverRadius: 8, pointHitRadius: 35, tension: 0.45 }
+                        { label: 'Sell (High)', data: highs, borderColor: '#00E676', borderWidth: 2, pointRadius: 2, tension: 0.4 },
+                        { label: 'Buy (Low)', data: lows, borderColor: '#FF5252', borderWidth: 2, pointRadius: 2, tension: 0.4 }
                     ]
                 },
                 options: {
@@ -1172,28 +1226,14 @@
                         x: { ticks: { color: '#aaa', maxTicksLimit: 6 } },
                         y: { ticks: { color: '#aaa', callback: v => v.toLocaleString() + ' gp' } }
                     },
-                    plugins: { 
-                        legend: { labels: { color: '#fff', boxWidth: 12 } },
-                        tooltip: {
-                            mode: 'index', intersect: false,
-                            callbacks: {
-                                title: context => 'Timestamp: ' + context[0].label,
-                                label: context => (context.dataset.label || '') + ': ' + (context.parsed.y !== null ? context.parsed.y.toLocaleString() + ' gp' : '0 gp'),
-                                afterBody: context => 'Volume: ' + (volumes[context[0].dataIndex] !== undefined ? volumes[context[0].dataIndex].toLocaleString() : '0')
-                            }
-                        }
-                    }
+                    plugins: { legend: { labels: { color: '#fff', boxWidth: 10 } } }
                 }
             });
 
-            const volCtx = document.getElementById('volumeChart').getContext('2d');
             if (volumeChartObj) volumeChartObj.destroy();
-            volumeChartObj = new Chart(volCtx, {
+            volumeChartObj = new Chart(document.getElementById('volumeChart').getContext('2d'), {
                 type: 'bar',
-                data: {
-                    labels: dates,
-                    datasets: [{ label: 'Volume', data: volumes, backgroundColor: 'rgba(33, 150, 243, 0.6)', borderColor: '#2196F3', borderWidth: 1, pointHitRadius: 35 }]
-                },
+                data: { labels: dates, datasets: [{ data: volumes, backgroundColor: 'rgba(33, 150, 243, 0.6)', borderColor: '#2196F3', borderWidth: 1 }] },
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
@@ -1201,31 +1241,20 @@
                         x: { ticks: { color: '#aaa', maxTicksLimit: 6 } },
                         y: { ticks: { color: '#aaa', callback: v => v.toLocaleString() } }
                     },
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: {
-                            mode: 'index', intersect: false,
-                            callbacks: {
-                                title: context => 'Timestamp: ' + context[0].label,
-                                label: context => 'Volume: ' + (context.parsed.y !== null ? context.parsed.y.toLocaleString() : '0')
-                            }
-                        }
-                    }
+                    plugins: { legend: { display: false } }
                 }
             });
         }
 
         function closeGraph() { document.getElementById('chartModal').style.display = "none"; }
-        window.onclick = function(event) { let modal = document.getElementById('chartModal'); if (event.target == modal) modal.style.display = "none"; }
+        window.onclick = function(event) { if (event.target == document.getElementById('chartModal')) document.getElementById('chartModal').style.display = "none"; }
 
         let resizeTimer;
         window.addEventListener('resize', () => {
             clearTimeout(resizeTimer);
             resizeTimer = setTimeout(() => {
-                if (currentCategory === 'home' && homeDataCache) {
+                if (currentView === 'home' && homeDataCache) {
                     renderHomeView(homeDataCache);
-                } else if (currentCategory !== 'home' && currentViewMode === 'grid') {
-                    filterAndSortData();
                 }
             }, 250);
         });
