@@ -932,7 +932,7 @@
             }
         }
 
-        function updateAuthUI() {
+        async function updateAuthUI() {
             const actionBtn = document.getElementById('authActionButton');
             const profilePill = document.getElementById('headerAuthProfile');
             const avatarImg = document.getElementById('headerAvatarImg');
@@ -960,7 +960,7 @@
                 if (Object.keys(cachedItemsMap).length > 0) {
                     renderHomeFavoritesSection(cachedItemsMap);
                 }
-                updateHomeHeaderStats();
+                await updateHomeHeaderStats();
             } else {
                 actionBtn.style.display = 'block';
                 profilePill.style.display = 'none';
@@ -970,7 +970,7 @@
                 navGainsBtn.classList.add('hidden-nav');
 
                 document.getElementById('homeFavoritesSection').style.display = 'none';
-                updateHomeHeaderStats();
+                await updateHomeHeaderStats();
 
                 if (currentView === 'account' || currentView === 'favorites' || currentView === 'gains') {
                     switchView('home');
@@ -1092,7 +1092,7 @@
             userPurchasesHistory.unshift(entry);
             await saveUserDataToSupabase();
             renderGainsView();
-            updateHomeHeaderStats();
+            await updateHomeHeaderStats();
         }
 
         async function logSaleEntry() {
@@ -1130,21 +1130,21 @@
             userSalesHistory.unshift(entry);
             await saveUserDataToSupabase();
             renderGainsView();
-            updateHomeHeaderStats();
+            await updateHomeHeaderStats();
         }
 
         async function deletePurchaseEntry(entryId) {
             userPurchasesHistory = userPurchasesHistory.filter(e => e.id !== entryId);
             await saveUserDataToSupabase();
             renderGainsView();
-            updateHomeHeaderStats();
+            await updateHomeHeaderStats();
         }
 
         async function deleteSaleEntry(entryId) {
             userSalesHistory = userSalesHistory.filter(e => e.id !== entryId);
             await saveUserDataToSupabase();
             renderGainsView();
-            updateHomeHeaderStats();
+            await updateHomeHeaderStats();
         }
 
         async function clearGainsHistory() {
@@ -1153,18 +1153,21 @@
                 userSalesHistory = [];
                 await saveUserDataToSupabase();
                 renderGainsView();
-                updateHomeHeaderStats();
+                await updateHomeHeaderStats();
             }
         }
 
-        function updateHomeHeaderStats() {
+        async function updateHomeHeaderStats() {
             const totalProfitEl = document.getElementById('homeTotalProfitDisplay');
+            if (Object.keys(cachedItemsMap).length === 0) {
+                await loadMarketData();
+            }
             
             let totalRealizedProfit = userSalesHistory.reduce((sum, entry) => sum + entry.profit, 0);
             
             let activeInventoryValue = userPurchasesHistory.reduce((sum, entry) => {
                 let currentItem = cachedItemsMap[entry.itemId];
-                let currentValuation = currentItem ? (currentItem.buy * entry.quantity) : entry.totalCost;
+                let currentValuation = (currentItem && currentItem.sell > 0) ? (currentItem.sell * entry.quantity) : entry.totalCost;
                 return sum + currentValuation;
             }, 0);
 
@@ -1187,7 +1190,7 @@
             let combinedEvents = [
                 ...userPurchasesHistory.map(p => {
                     let item = cachedItemsMap[p.itemId];
-                    let currentVal = item ? (item.buy * p.quantity) : p.totalCost;
+                    let currentVal = (item && item.sell > 0) ? (item.sell * p.quantity) : p.totalCost;
                     return { time: p.id, val: currentVal - p.totalCost };
                 }),
                 ...userSalesHistory.map(s => ({ time: s.id, val: s.profit }))
@@ -1862,6 +1865,7 @@
                 let itemsMap = await loadMarketData();
                 renderHomeView(Object.values(itemsMap));
                 renderHomeFavoritesSection(itemsMap);
+                await updateHomeHeaderStats();
             } catch (err) {
                 document.getElementById('recContainer').innerHTML = `<div class="error-overlay">❌ Initialization Failed: ${err.message}</div>`;
             }
@@ -1903,10 +1907,10 @@
             closeUserDropdown();
 
             if (viewName === 'home') {
-                loadMarketData().then(itemsMap => {
+                loadMarketData().then(async itemsMap => {
                     renderHomeView(Object.values(itemsMap));
                     renderHomeFavoritesSection(itemsMap);
-                    updateHomeHeaderStats();
+                    await updateHomeHeaderStats();
                 });
             } else if (viewName === 'flips') {
                 sortField = "volume"; sortAsc = false;
