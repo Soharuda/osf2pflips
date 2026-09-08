@@ -329,13 +329,13 @@
         <div id="view-gains" class="view-section">
             <h2>📈 Gains Tracker - Purchases & Sales</h2>
             
-            <!-- Mode Switcher Tabs for Purchase / Sale -->
+            <!-- Mode Switcher Tabs for Purchase / Completed Sales -->
             <div style="display: flex; gap: 6px; margin-bottom: 12px;">
-                <button id="gainsTabBuyBtn" class="auth-action-btn" onclick="switchGainsTab('buy')" style="background: var(--accent-green); color: #fff; border-color: var(--accent-green);">🛒 Log Purchase</button>
-                <button id="gainsTabSellBtn" class="auth-action-btn" onclick="switchGainsTab('sell')" style="background: #2c2c2c; color: var(--text-muted); border-color: #444;">💰 Log Sale</button>
+                <button id="gainsTabBuyBtn" class="auth-action-btn" onclick="switchGainsTab('buy')" style="background: var(--accent-green); color: #fff; border-color: var(--accent-green);">🛒 Active Inventory</button>
+                <button id="gainsTabSellBtn" class="auth-action-btn" onclick="switchGainsTab('sell')" style="background: #2c2c2c; color: var(--text-muted); border-color: #444;">💰 Completed Sales History</button>
             </div>
 
-            <!-- Purchase Form -->
+            <!-- Purchase Form (Only shown on Active Inventory tab) -->
             <div id="gainsBuyFormContainer" class="gains-form-grid">
                 <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
                     <label style="font-size: 0.75rem; color: var(--text-muted);">Select Item to Purchase</label>
@@ -355,28 +355,6 @@
                     <input type="number" id="gainsBuyInputPrice" placeholder="0" style="padding: 9px; width: 100%; box-sizing: border-box;">
                 </div>
                 <button class="auth-action-btn" onclick="logPurchaseEntry()" style="padding: 10px 16px; height: 41px; width: 100%; background: var(--accent-green); border-color: var(--accent-green); color: #fff;">Save Purchase</button>
-            </div>
-
-            <!-- Sale Form (Hidden by Default) -->
-            <div id="gainsSellFormContainer" class="gains-form-grid" style="display: none;">
-                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
-                    <label style="font-size: 0.75rem; color: var(--text-muted);">Select Item Sold</label>
-                    <div class="searchable-select-wrapper" id="searchableSelectWrapperSell">
-                        <input type="text" id="gainsItemSearchInputSell" class="searchable-select-input" placeholder="Type to search item..." autocomplete="off" oninput="filterGainsDropdown('sell')" onfocus="openGainsDropdown('sell')">
-                        <div id="gainsDropdownListSell" class="searchable-dropdown-list"></div>
-                    </div>
-                    <input type="hidden" id="gainsSelectedItemIdSell" value="">
-                </div>
-
-                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
-                    <label style="font-size: 0.75rem; color: var(--text-muted);">Quantity Sold</label>
-                    <input type="number" id="gainsQtyInputSell" value="1" min="1" style="padding: 9px; width: 100%; box-sizing: border-box;">
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
-                    <label style="font-size: 0.75rem; color: var(--text-muted);">Sell Price (Each)</label>
-                    <input type="number" id="gainsSellInputPrice" placeholder="0" style="padding: 9px; width: 100%; box-sizing: border-box;">
-                </div>
-                <button class="auth-action-btn" onclick="logSaleEntry()" style="padding: 10px 16px; height: 41px; width: 100%; background: var(--accent-orange); border-color: var(--accent-orange); color: #fff;">Save Sale</button>
             </div>
 
             <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
@@ -561,6 +539,31 @@
             <div class="chart-container"><canvas id="priceChart"></canvas></div>
             <p style="font-size:0.8rem; color:#aaa; margin:8px 0 4px 0;">Trade Volume</p>
             <div class="chart-container"><canvas id="volumeChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Quick Sale Modal (Triggered directly from clicking Sell on a specific inventory row) -->
+    <div id="quickSaleModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: left;">
+            <span class="close" onclick="closeQuickSaleModal()">&times;</span>
+            <h3 style="color: var(--accent-orange); margin-top: 0; text-align: center;">Log Sale for Batch</h3>
+            <div id="quickSaleItemInfo" style="display: flex; align-items: center; gap: 10px; background: #161616; padding: 10px; border-radius: 6px; margin-bottom: 12px;">
+                <img id="quickSaleModalIcon" src="" width="32" height="32" alt="icon">
+                <div>
+                    <div id="quickSaleItemName" style="font-weight: bold; color: #fff;">Item Name</div>
+                    <div id="quickSaleItemDetails" style="font-size: 0.75rem; color: var(--text-muted);">Bought at: 0 gp | Max Qty: 0</div>
+                </div>
+            </div>
+            <form id="quickSaleForm" onsubmit="event.preventDefault(); submitQuickSale();" style="display: flex; flex-direction: column; gap: 10px;">
+                <input type="hidden" id="quickSaleEntryId">
+                <label style="font-size: 0.8rem; color: var(--text-muted);" for="quickSaleQtyInput">Quantity to Sell</label>
+                <input type="number" id="quickSaleQtyInput" min="1" style="width: 100%; box-sizing: border-box;" required>
+                
+                <label style="font-size: 0.8rem; color: var(--text-muted);" for="quickSalePriceInput">Sell Price (Each)</label>
+                <input type="number" id="quickSalePriceInput" min="0" style="width: 100%; box-sizing: border-box;" required>
+                
+                <button type="submit" class="auth-action-btn" style="padding: 10px; font-size: 0.9rem; margin-top: 5px; text-align: center; width: 100%; background: var(--accent-orange); border-color: var(--accent-orange); color: #fff;">Complete Sale</button>
+            </form>
         </div>
     </div>
 
@@ -1038,7 +1041,6 @@
             const buyBtn = document.getElementById('gainsTabBuyBtn');
             const sellBtn = document.getElementById('gainsTabSellBtn');
             const buyForm = document.getElementById('gainsBuyFormContainer');
-            const sellForm = document.getElementById('gainsSellFormContainer');
 
             if (tab === 'buy') {
                 buyBtn.style.background = 'var(--accent-green)';
@@ -1048,7 +1050,6 @@
                 sellBtn.style.color = 'var(--text-muted)';
                 sellBtn.style.borderColor = '#444';
                 buyForm.style.display = 'grid';
-                sellForm.style.display = 'none';
                 document.getElementById('gainsTableTitle').innerText = "Active Purchases / Inventory";
             } else {
                 sellBtn.style.background = 'var(--accent-orange)';
@@ -1057,7 +1058,6 @@
                 buyBtn.style.background = '#2c2c2c';
                 buyBtn.style.color = 'var(--text-muted)';
                 buyBtn.style.borderColor = '#444';
-                sellForm.style.display = 'grid';
                 buyForm.style.display = 'none';
                 document.getElementById('gainsTableTitle').innerText = "Completed Sales History";
             }
@@ -1095,46 +1095,64 @@
             await updateHomeHeaderStats();
         }
 
-        async function logSaleEntry() {
-            const itemId = safeInt(document.getElementById('gainsSelectedItemIdSell').value);
-            const qtyEl = document.getElementById('gainsQtyInputSell');
-            const priceEl = document.getElementById('gainsSellInputPrice');
+        function openQuickSaleModal(entryId) {
+            let purchase = userPurchasesHistory.find(p => p.id === entryId);
+            if (!purchase) return;
 
-            let qty = Math.max(1, safeInt(qtyEl.value));
-            let sellPrice = safeInt(priceEl.value);
+            document.getElementById('quickSaleEntryId').value = purchase.id;
+            document.getElementById('quickSaleModalIcon').src = purchase.icon;
+            document.getElementById('quickSaleItemName').innerText = purchase.name;
+            document.getElementById('quickSaleItemDetails').innerText = `Bought at: ${purchase.buyPrice.toLocaleString()} gp (Ea) | Max Qty: ${purchase.quantity.toLocaleString()}`;
+            
+            document.getElementById('quickSaleQtyInput').value = purchase.quantity;
+            document.getElementById('quickSaleQtyInput').max = purchase.quantity;
+            
+            let itemMeta = cachedItemsMap[purchase.itemId];
+            document.getElementById('quickSalePriceInput').value = itemMeta ? itemMeta.sell : purchase.buyPrice;
 
-            let item = cachedItemsMap[itemId];
-            if (!item) {
-                alert("Please select a valid item from the sales dropdown search results.");
+            document.getElementById('quickSaleModal').style.display = 'block';
+        }
+
+        function closeQuickSaleModal() {
+            document.getElementById('quickSaleModal').style.display = 'none';
+        }
+
+        async function submitQuickSale() {
+            const entryId = safeInt(document.getElementById('quickSaleEntryId').value);
+            const qty = Math.max(1, safeInt(document.getElementById('quickSaleQtyInput').value));
+            const sellPrice = safeInt(document.getElementById('quickSalePriceInput').value);
+
+            let purchaseIndex = userPurchasesHistory.findIndex(p => p.id === entryId);
+            if (purchaseIndex === -1) {
+                alert("Could not locate purchase batch.");
+                closeQuickSaleModal();
                 return;
             }
 
-            // Find matching active purchase to calculate basis and remove/reduce it from inventory
-            let purchaseIndex = userPurchasesHistory.findIndex(p => p.itemId === item.id);
-            let unitCost = 0;
+            let purchase = userPurchasesHistory[purchaseIndex];
+            if (qty > purchase.quantity) {
+                alert(`Cannot sell more than the available quantity in this batch (${purchase.quantity}).`);
+                return;
+            }
 
-            if (purchaseIndex > -1) {
-                let purchase = userPurchasesHistory[purchaseIndex];
-                unitCost = purchase.buyPrice;
-                
-                if (purchase.quantity > qty) {
-                    // Partially consumed purchase lot
-                    purchase.quantity -= qty;
-                    purchase.totalCost = purchase.quantity * purchase.buyPrice;
-                } else {
-                    // Fully consumed purchase lot, remove from active inventory
-                    userPurchasesHistory.splice(purchaseIndex, 1);
-                }
+            let unitCost = purchase.buyPrice;
+
+            // Reduce or remove the specific purchase batch
+            if (purchase.quantity > qty) {
+                purchase.quantity -= qty;
+                purchase.totalCost = purchase.quantity * purchase.buyPrice;
+            } else {
+                userPurchasesHistory.splice(purchaseIndex, 1);
             }
 
             let tax = sellPrice > 0 ? Math.min(Math.floor((sellPrice * qty) * 0.01), 5000000) : 0;
             let netProfit = (sellPrice * qty) - (unitCost * qty) - tax;
 
-            let entry = {
+            let saleEntry = {
                 id: Date.now(),
-                itemId: item.id,
-                name: item.name,
-                icon: item.icon,
+                itemId: purchase.itemId,
+                name: purchase.name,
+                icon: purchase.icon,
                 quantity: qty,
                 sellPrice: sellPrice,
                 buyPrice: unitCost,
@@ -1142,8 +1160,9 @@
                 date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
 
-            userSalesHistory.unshift(entry);
+            userSalesHistory.unshift(saleEntry);
             await saveUserDataToSupabase();
+            closeQuickSaleModal();
             renderGainsView();
             await updateHomeHeaderStats();
         }
@@ -1302,9 +1321,9 @@
             renderGainsChart();
 
             if (activeGainsTab === 'buy') {
-                tableHeaders.innerHTML = `<th>Icon</th><th>Item Name</th><th>Quantity</th><th>Buy Price (Ea)</th><th>Total Invested</th><th>Date Purchased</th><th>Action</th>`;
+                tableHeaders.innerHTML = `<th>Icon</th><th>Item Name</th><th>Quantity</th><th>Buy Price (Ea)</th><th>Total Invested</th><th>Date Purchased</th><th>Actions</th>`;
                 if (!userPurchasesHistory.length) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="loading-overlay">No active purchases logged yet. Use the 'Log Purchase' tab above.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" class="loading-overlay">No active purchases logged yet. Use the form above to track items.</td></tr>`;
                     return;
                 }
                 tbody.innerHTML = "";
@@ -1317,14 +1336,19 @@
                         <td>${entry.buyPrice.toLocaleString()} gp</td>
                         <td>${entry.totalCost.toLocaleString()} gp</td>
                         <td style="color: var(--text-muted); font-size: 0.75rem;">${entry.date}</td>
-                        <td><button onclick="deletePurchaseEntry(${entry.id})" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Delete</button></td>
+                        <td>
+                            <div style="display: flex; gap: 4px;">
+                                <button onclick="openQuickSaleModal(${entry.id})" style="background: var(--accent-orange); color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">Sell</button>
+                                <button onclick="deletePurchaseEntry(${entry.id})" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Delete</button>
+                            </div>
+                        </td>
                     `;
                     tbody.appendChild(tr);
                 });
             } else {
                 tableHeaders.innerHTML = `<th>Icon</th><th>Item Name</th><th>Quantity</th><th>Buy Price</th><th>Sell Price</th><th>Realized Profit</th><th>Date Sold</th><th>Action</th>`;
                 if (!userSalesHistory.length) {
-                    tbody.innerHTML = `<tr><td colspan="8" class="loading-overlay">No completed sales logged yet. Use the 'Log Sale' tab above.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="8" class="loading-overlay">No completed sales logged yet. Click 'Sell' on any active purchase batch to record a sale.</td></tr>`;
                     return;
                 }
                 tbody.innerHTML = "";
@@ -1403,8 +1427,8 @@
         }
 
         function filterGainsDropdown(type) {
-            const inputEl = document.getElementById(type === 'buy' ? 'gainsItemSearchInputBuy' : 'gainsItemSearchInputSell');
-            const listEl = document.getElementById(type === 'buy' ? 'gainsDropdownListBuy' : 'gainsDropdownListSell');
+            const inputEl = document.getElementById('gainsItemSearchInputBuy');
+            const listEl = document.getElementById('gainsDropdownListBuy');
             const inputVal = inputEl.value.toUpperCase();
             
             let sortedItems = Object.values(cachedItemsMap).sort((a, b) => a.name.localeCompare(b.name));
@@ -1421,24 +1445,17 @@
                 let div = document.createElement('div');
                 div.className = "searchable-dropdown-item";
                 div.innerHTML = `<img src="${item.icon}" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"><span>${item.name}</span>`;
-                div.onmousedown = () => selectGainsItem(item, type);
+                div.onmousedown = () => selectGainsItem(item);
                 listEl.appendChild(div);
             });
             listEl.classList.add('open');
         }
 
-        function selectGainsItem(item, type) {
-            if (type === 'buy') {
-                document.getElementById('gainsItemSearchInputBuy').value = item.name;
-                document.getElementById('gainsSelectedItemIdBuy').value = item.id;
-                document.getElementById('gainsBuyInputPrice').value = item.buy || 0;
-                document.getElementById('gainsDropdownListBuy').classList.remove('open');
-            } else {
-                document.getElementById('gainsItemSearchInputSell').value = item.name;
-                document.getElementById('gainsSelectedItemIdSell').value = item.id;
-                document.getElementById('gainsSellInputPrice').value = item.sell || 0;
-                document.getElementById('gainsDropdownListSell').classList.remove('open');
-            }
+        function selectGainsItem(item) {
+            document.getElementById('gainsItemSearchInputBuy').value = item.name;
+            document.getElementById('gainsSelectedItemIdBuy').value = item.id;
+            document.getElementById('gainsBuyInputPrice').value = item.buy || 0;
+            document.getElementById('gainsDropdownListBuy').classList.remove('open');
         }
 
         function openAuthModal() {
@@ -2382,13 +2399,11 @@
         function closeGraph() { document.getElementById('chartModal').style.display = "none"; }
         window.onclick = function(event) { 
             if (event.target == document.getElementById('chartModal')) document.getElementById('chartModal').style.display = "none";
+            if (event.target == document.getElementById('quickSaleModal')) closeQuickSaleModal();
             if (event.target == document.getElementById('authModal')) closeAuthModal();
             if (event.target == document.getElementById('resetPasswordModal')) document.getElementById('resetPasswordModal').style.display = "none";
             if (!document.getElementById('searchableSelectWrapperBuy').contains(event.target)) {
                 document.getElementById('gainsDropdownListBuy').classList.remove('open');
-            }
-            if (!document.getElementById('searchableSelectWrapperSell').contains(event.target)) {
-                document.getElementById('gainsDropdownListSell').classList.remove('open');
             }
             closeUserDropdown();
         }
