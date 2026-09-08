@@ -1109,8 +1109,23 @@
                 return;
             }
 
-            let matchingPurchase = userPurchasesHistory.find(p => p.itemId === item.id);
-            let unitCost = matchingPurchase ? matchingPurchase.buyPrice : 0;
+            // Find matching active purchase to calculate basis and remove/reduce it from inventory
+            let purchaseIndex = userPurchasesHistory.findIndex(p => p.itemId === item.id);
+            let unitCost = 0;
+
+            if (purchaseIndex > -1) {
+                let purchase = userPurchasesHistory[purchaseIndex];
+                unitCost = purchase.buyPrice;
+                
+                if (purchase.quantity > qty) {
+                    // Partially consumed purchase lot
+                    purchase.quantity -= qty;
+                    purchase.totalCost = purchase.quantity * purchase.buyPrice;
+                } else {
+                    // Fully consumed purchase lot, remove from active inventory
+                    userPurchasesHistory.splice(purchaseIndex, 1);
+                }
+            }
 
             let tax = sellPrice > 0 ? Math.min(Math.floor((sellPrice * qty) * 0.01), 5000000) : 0;
             let netProfit = (sellPrice * qty) - (unitCost * qty) - tax;
