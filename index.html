@@ -325,14 +325,13 @@
         <div id="view-gains" class="view-section">
             <h2>📈 Gains Tracker - Purchases & Sales</h2>
             
-            <!-- Compact Action Header: Filter Dropdown + "Log Purchase" Trigger Button -->
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Filter:</label>
                     <select id="gainsFilterSelect" onchange="renderGainsView()" style="padding: 6px 10px; min-width: 130px; font-size: 0.8rem;">
-                        <option value="all" selected>All Purchases</option>
-                        <option value="active">Active Only</option>
-                        <option value="completed">Completed Only</option>
+                        <option value="all" selected>All Transactions</option>
+                        <option value="active">Active Batches</option>
+                        <option value="completed">Completed Sales</option>
                     </select>
                 </div>
                 <button class="auth-action-btn" onclick="openLogPurchaseModal()" style="background: var(--accent-green); border-color: var(--accent-green); color: #fff;">➕ Log New Purchase</button>
@@ -359,11 +358,11 @@
             </div>
 
             <!-- Section Title -->
-            <h3 id="gainsTableTitle" style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--text-main);">Unified Purchase History</h3>
+            <h3 id="gainsTableTitle" style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--text-main);">Transaction History</h3>
 
-            <!-- Card Grid Container for Purchases -->
+            <!-- Card Grid Container for Purchases & Sales -->
             <div id="gainsCardGrid" class="card-grid">
-                <div class="loading-overlay">No purchases logged yet.</div>
+                <div class="loading-overlay">No history logged yet.</div>
             </div>
         </div>
 
@@ -513,7 +512,7 @@
         </div>
     </div>
 
-    <!-- Log Purchase Modal (Triggered via "Log New Purchase" Button) -->
+    <!-- Log Purchase Modal -->
     <div id="logPurchaseModal" class="modal">
         <div class="modal-content" style="max-width: 400px; text-align: left;">
             <span class="close" onclick="closeLogPurchaseModal()">&times;</span>
@@ -543,7 +542,7 @@
         </div>
     </div>
 
-    <!-- Quick Sale Modal (Triggered directly from clicking Sell on a specific purchase card) -->
+    <!-- Quick Sale Modal -->
     <div id="quickSaleModal" class="modal">
         <div class="modal-content" style="max-width: 400px; text-align: left;">
             <span class="close" onclick="closeQuickSaleModal()">&times;</span>
@@ -606,7 +605,7 @@
         </div>
     </div>
 
-    <!-- Set New Password Modal (Triggered on Recovery Link Click) -->
+    <!-- Set New Password Modal -->
     <div id="resetPasswordModal" class="modal">
         <div class="modal-content" style="max-width: 400px; text-align: left;">
             <h3 style="color: var(--accent-orange); margin-top: 0; text-align: center;">Set New Password</h3>
@@ -888,31 +887,56 @@
                     userFavorites = data.favorites || [];
                     userProfile = data.profile || { username: "", avatar: "" };
                     userSalesHistory = data.sales || [];
-                    
-                    // Robust mapping for legacy purchases and missing remaining quantities
-                    let rawPurchases = data.purchases || data.gains || [];
-                    userPurchasesHistory = rawPurchases.map(entry => {
-                        let qty = entry.initialQuantity || entry.quantity || 1;
-                        let remaining = entry.remainingQuantity !== undefined ? entry.remainingQuantity : 0;
-                        
-                        let matchedSales = userSalesHistory.filter(s => s.itemId === entry.itemId && !entry.salesLog);
-                        let salesLog = entry.salesLog || matchedSales.map(s => ({
-                            id: s.id || Date.now(),
-                            quantity: s.quantity || qty,
-                            sellPrice: s.sellPrice || 0,
-                            buyPrice: s.buyPrice || entry.buyPrice,
-                            profit: s.profit || 0,
-                            date: s.date || entry.date
-                        }));
+                    userPurchasesHistory = data.purchases || data.gains || [];
 
-                        return {
-                            ...entry,
-                            initialQuantity: qty,
-                            remainingQuantity: remaining,
-                            totalCost: entry.totalCost || (entry.buyPrice * qty),
-                            salesLog: salesLog
-                        };
+                    // Ensure every standalone sale in userSalesHistory has an independent representation if needed,
+                    // or map legacy batch sales out so they are fully displayed as individual transactions.
+                    let expandedSales = [];
+                    userPurchasesHistory.forEach(p => {
+                        if (p.salesLog && p.salesLog.length > 0) {
+                            p.salesLog.forEach(s => {
+                                expandedSales.push({
+                                    id: s.id || (p.id + Math.random()),
+                                    itemId: p.itemId,
+                                    name: p.name,
+                                    icon: p.icon,
+                                    quantity: s.quantity,
+                                    buyPrice: p.buyPrice,
+                                    sellPrice: s.sellPrice,
+                                    profit: s.profit,
+                                    date: s.date || p.date,
+                                    type: 'sale'
+                                });
+                            });
+                        }
+                        if (p.remainingQuantity > 0) {
+                            expandedSales.push({
+                                id: p.id,
+                                itemId: p.itemId,
+                                name: p.name,
+                                icon: p.icon,
+                                quantity: p.remainingQuantity,
+                                buyPrice: p.buyPrice,
+                                totalCost: p.remainingQuantity * p.buyPrice,
+                                date: p.date,
+                                type: 'active_purchase'
+                            });
+                        }
                     });
+
+                    // Include standalone userSalesHistory items that weren't inside batch logs
+                    userSalesHistory.forEach(s => {
+                        if (!expandedSales.some(e => e.id === s.id)) {
+                            expandedSales.push({
+                                ...s,
+                                type: 'sale'
+                            });
+                        }
+                    });
+
+                    // Store back cleanly
+                    window.flattenedTransactions = expandedSales;
+
                 } else if (error && error.code === 'PGRST116') {
                     await saveUserDataToSupabase();
                 }
@@ -1100,6 +1124,7 @@
             };
 
             userPurchasesHistory.unshift(entry);
+            await loadUserDataFromSupabase(); // refresh flattened
             await saveUserDataToSupabase();
             closeLogPurchaseModal();
             renderGainsView();
@@ -1161,7 +1186,6 @@
 
             purchase.salesLog.unshift(saleEntry);
 
-            // Also keep legacy userSalesHistory in sync for charts
             userSalesHistory.unshift({
                 id: saleEntry.id,
                 itemId: purchase.itemId,
@@ -1174,21 +1198,26 @@
                 date: saleEntry.date
             });
 
+            await loadUserDataFromSupabase();
             await saveUserDataToSupabase();
             closeQuickSaleModal();
             renderGainsView();
             await updateHomeHeaderStats();
         }
 
-        async function deletePurchaseEntry(entryId) {
-            let purchase = userPurchasesHistory.find(p => p.id === entryId);
-            if (!purchase) return;
-
-            // Remove associated sales from userSalesHistory
-            let saleIds = purchase.salesLog.map(s => s.id);
-            userSalesHistory = userSalesHistory.filter(s => !saleIds.includes(s.id));
-
-            userPurchasesHistory = userPurchasesHistory.filter(e => e.id !== entryId);
+        async function deleteTransactionEntry(id, isSale) {
+            if (isSale) {
+                userSalesHistory = userSalesHistory.filter(s => s.id !== id);
+                userPurchasesHistory.forEach(p => {
+                    if (p.salesLog) {
+                        p.salesLog = p.salesLog.filter(s => s.id !== id);
+                        p.remainingQuantity += (p.salesLog.find(s => s.id === id)?.quantity || 0);
+                    }
+                });
+            } else {
+                userPurchasesHistory = userPurchasesHistory.filter(p => p.id !== id);
+            }
+            await loadUserDataFromSupabase();
             await saveUserDataToSupabase();
             renderGainsView();
             await updateHomeHeaderStats();
@@ -1198,6 +1227,7 @@
             if (confirm("Are you sure you want to clear all tracked purchases and sales history?")) {
                 userPurchasesHistory = [];
                 userSalesHistory = [];
+                window.flattenedTransactions = [];
                 await saveUserDataToSupabase();
                 renderGainsView();
                 await updateHomeHeaderStats();
@@ -1334,38 +1364,29 @@
 
             renderGainsChart();
 
-            // Filter purchases based on dropdown selection
-            let filteredPurchases = userPurchasesHistory.filter(p => {
-                if (filterVal === 'active') return p.remainingQuantity > 0;
-                if (filterVal === 'completed') return p.remainingQuantity === 0;
-                return true; // 'all'
+            let transactions = window.flattenedTransactions || [];
+
+            let filtered = transactions.filter(t => {
+                if (filterVal === 'active') return t.type === 'active_purchase';
+                if (filterVal === 'completed') return t.type === 'sale';
+                return true;
             });
 
-            if (!filteredPurchases.length) {
-                gridContainer.innerHTML = `<div class="loading-overlay" style="grid-column: 1 / -1;">No purchases found matching filter.</div>`;
+            if (!filtered.length) {
+                gridContainer.innerHTML = `<div class="loading-overlay" style="grid-column: 1 / -1;">No records found matching filter.</div>`;
                 return;
             }
 
             gridContainer.innerHTML = "";
-            filteredPurchases.forEach(entry => {
+            filtered.forEach(entry => {
                 let div = document.createElement('div');
                 div.className = "card";
                 div.style.cursor = "default";
 
-                let isCompleted = entry.remainingQuantity === 0;
-                let statusBadge = isCompleted 
-                    ? `<span class="badge highlight" style="background: rgba(76,175,80,0.1);">Status: Completed</span>`
-                    : `<span class="badge tax-text" style="background: rgba(255,152,0,0.1);">Status: Active (${entry.remainingQuantity.toLocaleString()} left)</span>`;
-
-                let salesHistoryHtml = "";
-                if (entry.salesLog && entry.salesLog.length > 0) {
-                    salesHistoryHtml = `<div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-color); font-size: 0.7rem; color: var(--text-muted);"><b>Sales Record:</b>`;
-                    entry.salesLog.forEach(s => {
-                        let pSign = s.profit >= 0 ? "+" : "";
-                        salesHistoryHtml += `<div style="display: flex; justify-content: space-between;"><span>${s.quantity}x @ ${s.sellPrice.toLocaleString()} gp</span><span class="${s.profit >= 0 ? 'highlight' : 'neg-highlight'}">${pSign}${s.profit.toLocaleString()} gp</span></div>`;
-                    });
-                    salesHistoryHtml += `</div>`;
-                }
+                let isSale = entry.type === 'sale';
+                let badgeHtml = isSale 
+                    ? `<span class="badge ${entry.profit >= 0 ? 'highlight' : 'neg-highlight'}">Sale Result: ${entry.profit >= 0 ? '+' : ''}${entry.profit.toLocaleString()} gp</span>`
+                    : `<span class="badge tax-text" style="background: rgba(255,152,0,0.1);">Active Purchase (${entry.quantity.toLocaleString()} left)</span>`;
 
                 div.innerHTML = `
                     <div class="card-header">
@@ -1373,15 +1394,14 @@
                         <div class="card-title">${entry.name}</div>
                     </div>
                     <div style="width: 100%;">
-                        <div class="card-row"><span class="label">Initial Qty:</span><span>${(entry.initialQuantity || entry.quantity).toLocaleString()}</span></div>
-                        <div class="card-row"><span class="label">Buy Price (Ea):</span><span>${entry.buyPrice.toLocaleString()} gp</span></div>
-                        <div class="card-row"><span class="label">Total Invested:</span><span style="color: #ffa726; font-weight: bold;">${entry.totalCost.toLocaleString()} gp</span></div>
-                        <div class="card-row"><span class="label">Date Purchased:</span><span style="color: var(--text-muted); font-size: 0.7rem;">${entry.date}</span></div>
-                        <div class="card-badges" style="margin-top: 4px;">${statusBadge}</div>
-                        ${salesHistoryHtml}
+                        <div class="card-row"><span class="label">Quantity:</span><span>${entry.quantity.toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">${isSale ? 'Sell Price (Ea):' : 'Buy Price (Ea):'}</span><span>${(isSale ? entry.sellPrice : entry.buyPrice).toLocaleString()} gp</span></div>
+                        ${isSale ? `<div class="card-row"><span class="label">Profit:</span><span class="${entry.profit >= 0 ? 'highlight' : 'neg-highlight'}">${entry.profit >= 0 ? '+' : ''}${entry.profit.toLocaleString()} gp</span></div>` : `<div class="card-row"><span class="label">Total Invested:</span><span style="color: #ffa726; font-weight: bold;">${entry.totalCost.toLocaleString()} gp</span></div>`}
+                        <div class="card-row"><span class="label">Date:</span><span style="color: var(--text-muted); font-size: 0.7rem;">${entry.date}</span></div>
+                        <div class="card-badges" style="margin-top: 4px;">${badgeHtml}</div>
                         <div style="display: flex; gap: 6px; margin-top: 8px; pt-8px; border-top: 1px solid var(--border-color);">
-                            ${!isCompleted ? `<button onclick="openQuickSaleModal(${entry.id})" style="flex: 1; background: var(--accent-orange); color: #fff; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">💰 Sell</button>` : ``}
-                            <button onclick="deletePurchaseEntry(${entry.id})" style="flex: ${isCompleted ? '1' : 'initial'}; background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Delete</button>
+                            ${!isSale ? `<button onclick="openQuickSaleModal(${entry.id})" style="flex: 1; background: var(--accent-orange); color: #fff; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">💰 Sell</button>` : ``}
+                            <button onclick="deleteTransactionEntry(${entry.id}, ${isSale})" style="flex: 1; background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Delete</button>
                         </div>
                     </div>
                 `;
