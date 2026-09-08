@@ -862,6 +862,7 @@
                         userProfile = { username: "", avatar: "" };
                         userPurchasesHistory = [];
                         userSalesHistory = [];
+                        window.flattenedTransactions = [];
                     }
                     updateAuthUI();
 
@@ -889,8 +890,6 @@
                     userSalesHistory = data.sales || [];
                     userPurchasesHistory = data.purchases || data.gains || [];
 
-                    // Ensure every standalone sale in userSalesHistory has an independent representation if needed,
-                    // or map legacy batch sales out so they are fully displayed as individual transactions.
                     let expandedSales = [];
                     userPurchasesHistory.forEach(p => {
                         if (p.salesLog && p.salesLog.length > 0) {
@@ -924,7 +923,6 @@
                         }
                     });
 
-                    // Include standalone userSalesHistory items that weren't inside batch logs
                     userSalesHistory.forEach(s => {
                         if (!expandedSales.some(e => e.id === s.id)) {
                             expandedSales.push({
@@ -934,7 +932,6 @@
                         }
                     });
 
-                    // Store back cleanly
                     window.flattenedTransactions = expandedSales;
 
                 } else if (error && error.code === 'PGRST116') {
@@ -1124,8 +1121,8 @@
             };
 
             userPurchasesHistory.unshift(entry);
-            await loadUserDataFromSupabase(); // refresh flattened
             await saveUserDataToSupabase();
+            await loadUserDataFromSupabase();
             closeLogPurchaseModal();
             renderGainsView();
             await updateHomeHeaderStats();
@@ -1198,8 +1195,8 @@
                 date: saleEntry.date
             });
 
-            await loadUserDataFromSupabase();
             await saveUserDataToSupabase();
+            await loadUserDataFromSupabase();
             closeQuickSaleModal();
             renderGainsView();
             await updateHomeHeaderStats();
@@ -1210,15 +1207,18 @@
                 userSalesHistory = userSalesHistory.filter(s => s.id !== id);
                 userPurchasesHistory.forEach(p => {
                     if (p.salesLog) {
+                        let targetSale = p.salesLog.find(s => s.id === id);
+                        if (targetSale) {
+                            p.remainingQuantity += targetSale.quantity;
+                        }
                         p.salesLog = p.salesLog.filter(s => s.id !== id);
-                        p.remainingQuantity += (p.salesLog.find(s => s.id === id)?.quantity || 0);
                     }
                 });
             } else {
                 userPurchasesHistory = userPurchasesHistory.filter(p => p.id !== id);
             }
-            await loadUserDataFromSupabase();
             await saveUserDataToSupabase();
+            await loadUserDataFromSupabase();
             renderGainsView();
             await updateHomeHeaderStats();
         }
@@ -1240,8 +1240,8 @@
                 await loadMarketData();
             }
             
-            let totalRealizedProfit = userSalesHistory.reduce((sum, entry) => sum + entry.profit, 0);
-            let totalInvestedCapital = userPurchasesHistory.reduce((sum, entry) => sum + (entry.remainingQuantity * entry.buyPrice), 0);
+            let totalRealizedProfit = userSalesHistory.reduce((sum, entry) => sum + (entry.profit || 0), 0);
+            let totalInvestedCapital = userPurchasesHistory.reduce((sum, entry) => sum + ((entry.remainingQuantity || 0) * (entry.buyPrice || 0)), 0);
             let netPosition = totalRealizedProfit - totalInvestedCapital;
 
             if (totalProfitEl) {
@@ -1257,8 +1257,8 @@
             if (homeMiniChartObj) homeMiniChartObj.destroy();
 
             let combinedEvents = [
-                ...userPurchasesHistory.map(p => ({ time: p.id, val: -(p.initialQuantity * p.buyPrice) })),
-                ...userSalesHistory.map(s => ({ time: s.id, val: s.profit }))
+                ...userPurchasesHistory.map(p => ({ time: p.id || 0, val: -((p.initialQuantity || p.quantity || 0) * (p.buyPrice || 0)) })),
+                ...userSalesHistory.map(s => ({ time: s.id || 0, val: s.profit || 0 }))
             ].sort((a, b) => a.time - b.time);
 
             let labels = [];
@@ -1355,11 +1355,11 @@
             const totalPurchasesEl = document.getElementById('gainsTotalPurchasesCount');
             const filterVal = document.getElementById('gainsFilterSelect').value;
 
-            let totalProfit = userSalesHistory.reduce((sum, entry) => sum + entry.profit, 0);
+            let totalProfit = userSalesHistory.reduce((sum, entry) => sum + (entry.profit || 0), 0);
             totalProfitEl.innerText = (totalProfit >= 0 ? "+" : "") + totalProfit.toLocaleString() + " gp";
             totalProfitEl.className = totalProfit >= 0 ? "highlight" : "neg-highlight";
 
-            let activeCount = userPurchasesHistory.filter(p => p.remainingQuantity > 0).length;
+            let activeCount = userPurchasesHistory.filter(p => (p.remainingQuantity || 0) > 0).length;
             totalPurchasesEl.innerText = activeCount;
 
             renderGainsChart();
@@ -1386,18 +1386,18 @@
                 let isSale = entry.type === 'sale';
                 let badgeHtml = isSale 
                     ? `<span class="badge ${entry.profit >= 0 ? 'highlight' : 'neg-highlight'}">Sale Result: ${entry.profit >= 0 ? '+' : ''}${entry.profit.toLocaleString()} gp</span>`
-                    : `<span class="badge tax-text" style="background: rgba(255,152,0,0.1);">Active Purchase (${entry.quantity.toLocaleString()} left)</span>`;
+                    : `<span class="badge tax-text" style="background: rgba(255,152,0,0.1);">Active Purchase (${(entry.quantity || 0).toLocaleString()} left)</span>`;
 
                 div.innerHTML = `
                     <div class="card-header">
-                        <img src="${entry.icon}" loading="lazy" alt="icon">
-                        <div class="card-title">${entry.name}</div>
+                        <img src="${entry.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" loading="lazy" alt="icon">
+                        <div class="card-title">${entry.name || 'Unknown Item'}</div>
                     </div>
                     <div style="width: 100%;">
-                        <div class="card-row"><span class="label">Quantity:</span><span>${entry.quantity.toLocaleString()}</span></div>
-                        <div class="card-row"><span class="label">${isSale ? 'Sell Price (Ea):' : 'Buy Price (Ea):'}</span><span>${(isSale ? entry.sellPrice : entry.buyPrice).toLocaleString()} gp</span></div>
-                        ${isSale ? `<div class="card-row"><span class="label">Profit:</span><span class="${entry.profit >= 0 ? 'highlight' : 'neg-highlight'}">${entry.profit >= 0 ? '+' : ''}${entry.profit.toLocaleString()} gp</span></div>` : `<div class="card-row"><span class="label">Total Invested:</span><span style="color: #ffa726; font-weight: bold;">${entry.totalCost.toLocaleString()} gp</span></div>`}
-                        <div class="card-row"><span class="label">Date:</span><span style="color: var(--text-muted); font-size: 0.7rem;">${entry.date}</span></div>
+                        <div class="card-row"><span class="label">Quantity:</span><span>${(entry.quantity || 0).toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">${isSale ? 'Sell Price (Ea):' : 'Buy Price (Ea):'}</span><span>${(isSale ? (entry.sellPrice || 0) : (entry.buyPrice || 0)).toLocaleString()} gp</span></div>
+                        ${isSale ? `<div class="card-row"><span class="label">Profit:</span><span class="${(entry.profit || 0) >= 0 ? 'highlight' : 'neg-highlight'}">${(entry.profit || 0) >= 0 ? '+' : ''}${(entry.profit || 0).toLocaleString()} gp</span></div>` : `<div class="card-row"><span class="label">Total Invested:</span><span style="color: #ffa726; font-weight: bold;">${(entry.totalCost || 0).toLocaleString()} gp</span></div>`}
+                        <div class="card-row"><span class="label">Date:</span><span style="color: var(--text-muted); font-size: 0.7rem;">${entry.date || ''}</span></div>
                         <div class="card-badges" style="margin-top: 4px;">${badgeHtml}</div>
                         <div style="display: flex; gap: 6px; margin-top: 8px; pt-8px; border-top: 1px solid var(--border-color);">
                             ${!isSale ? `<button onclick="openQuickSaleModal(${entry.id})" style="flex: 1; background: var(--accent-orange); color: #fff; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">💰 Sell</button>` : ``}
@@ -1423,8 +1423,8 @@
                 cumulativeData = [0];
             } else {
                 chronological.forEach((entry, idx) => {
-                    runningSum += entry.profit;
-                    labels.push(`#${idx + 1} (${entry.name})`);
+                    runningSum += (entry.profit || 0);
+                    labels.push(`#${idx + 1} (${entry.name || 'Item'})`);
                     cumulativeData.push(runningSum);
                 });
             }
@@ -2028,7 +2028,7 @@
             homeDataCache = items;
             let targetCount = getOptimalItemCount();
 
-            let usable = items.filter(x => x.buy > 0 && x.sell > 0 && x.margin > 0 && x.volume > 100 && x.dataRatingText !== 'Stale' && x.dataRatingText !== 'Poor');
+            let usable = items.filter(x => x && x.buy > 0 && x.sell > 0 && x.margin > 0 && x.volume > 100 && x.dataRatingText !== 'Stale' && x.dataRatingText !== 'Poor');
 
             let sorted = [...usable].sort((a, b) => {
                 let capA = a.limit > 0 ? Math.min(a.limit, a.volume / 6) : (a.volume / 6);
@@ -2037,7 +2037,7 @@
             });
 
             if (sorted.length < targetCount) {
-                let fallback = items.filter(x => x.buy > 0 && x.sell > 0 && x.margin > 0 && !sorted.includes(x));
+                let fallback = items.filter(x => x && x.buy > 0 && x.sell > 0 && x.margin > 0 && !sorted.includes(x));
                 fallback.sort((a, b) => b.margin - a.margin);
                 sorted = [...sorted, ...fallback];
             }
@@ -2053,6 +2053,7 @@
             if (!data || data.length === 0) { container.innerHTML = `<div class="loading-overlay">No data available</div>`; return; }
             container.innerHTML = "";
             data.forEach((item, idx) => {
+                if (!item) return;
                 let div = document.createElement('div');
                 div.className = "card";
                 div.onclick = () => openGraph(item);
@@ -2064,16 +2065,16 @@
                 div.innerHTML = `
                     <div class="card-header">
                         <button class="fav-star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite(${item.id}, event)">${isFav ? '★' : '☆'}</button>
-                        <img src="${item.icon}" loading="lazy" alt="Item Icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'">
-                        <div class="card-title">${idx + 1}. ${item.name}</div>
+                        <img src="${item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" loading="lazy" alt="Item Icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'">
+                        <div class="card-title">${idx + 1}. ${item.name || 'Unknown'}</div>
                     </div>
                     <div style="width: 100%;">
-                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${item.buy.toLocaleString()} / ${item.sell.toLocaleString()}</span></div>
-                        <div class="card-row"><span class="label">Margin:</span><span class="highlight">+${item.margin.toLocaleString()} gp (${item.roiPct}%)</span></div>
-                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${item.volume.toLocaleString()} / ${item.limit.toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${(item.buy || 0).toLocaleString()} / ${(item.sell || 0).toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Margin:</span><span class="highlight">+${(item.margin || 0).toLocaleString()} gp (${item.roiPct || 0}%)</span></div>
+                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${(item.volume || 0).toLocaleString()} / ${(item.limit || 0).toLocaleString()}</span></div>
                         <div class="card-badges">
-                            <span class="badge ${item.trendClass}">${item.trendIcon} ${item.trend}</span>
-                            <span class="badge ${item.dataRatingClass}">Data: ${item.dataRatingText}</span>
+                            <span class="badge ${item.trendClass || 'tax-text'}">${item.trendIcon || '⚖️'} ${item.trend || 'Stable'}</span>
+                            <span class="badge ${item.dataRatingClass || 'tax-text'}">Data: ${item.dataRatingText || 'Poor'}</span>
                         </div>
                         <div class="card-footer">${timeLabel}: ~${potProfit.toLocaleString()} gp</div>
                     </div>
@@ -2106,16 +2107,16 @@
                 div.innerHTML = `
                     <div class="card-header">
                         <button class="fav-star-btn active" onclick="toggleFavorite(${item.id}, event)">★</button>
-                        <img src="${item.icon}" loading="lazy" alt="icon">
-                        <div class="card-title">${item.name}</div>
+                        <img src="${item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" loading="lazy" alt="icon">
+                        <div class="card-title">${item.name || 'Unknown'}</div>
                     </div>
                     <div style="width: 100%;">
-                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${item.buy.toLocaleString()} / ${item.sell.toLocaleString()}</span></div>
-                        <div class="card-row"><span class="label">Margin:</span><span class="${item.margin > 0 ? 'highlight' : 'neg-highlight'}">+${item.margin.toLocaleString()} gp</span></div>
-                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${item.volume.toLocaleString()} / ${item.limit.toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${(item.buy || 0).toLocaleString()} / ${(item.sell || 0).toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Margin:</span><span class="${(item.margin || 0) > 0 ? 'highlight' : 'neg-highlight'}">+${(item.margin || 0).toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${(item.volume || 0).toLocaleString()} / ${(item.limit || 0).toLocaleString()}</span></div>
                         <div class="card-badges">
-                            <span class="badge ${item.trendClass}">${item.trendIcon} ${item.trend}</span>
-                            <span class="badge ${item.dataRatingClass}">Data: ${item.dataRatingText}</span>
+                            <span class="badge ${item.trendClass || 'tax-text'}">${item.trendIcon || '⚖️'} ${item.trend || 'Stable'}</span>
+                            <span class="badge ${item.dataRatingClass || 'tax-text'}">Data: ${item.dataRatingText || 'Poor'}</span>
                         </div>
                     </div>
                 `;
@@ -2151,7 +2152,7 @@
                     sourceData = await getCalculatedRecipes();
                 } else if (currentView === 'alch') {
                     let itemsMap = await loadMarketData();
-                    sourceData = Object.values(itemsMap).filter(x => x.alch_value > 0);
+                    sourceData = Object.values(itemsMap).filter(x => x && x.alch_value > 0);
                     query = document.getElementById('searchAlchInput').value.toUpperCase();
                 } else if (currentView === 'flips') {
                     let itemsMap = await loadMarketData();
@@ -2166,13 +2167,14 @@
                 }
 
                 let filtered = sourceData.filter(item => {
-                    let matchesSearch = query === "" || item.name.toUpperCase().includes(query);
+                    if (!item) return false;
+                    let matchesSearch = query === "" || (item.name && item.name.toUpperCase().includes(query));
                     if (currentView === 'production') {
                         if (currentProductionCategory === 'smithing') {
-                            if (currentSubFilter === 'all') return item.type.startsWith('smithing_');
+                            if (currentSubFilter === 'all') return item.type && item.type.startsWith('smithing_');
                             return (item.type === currentSubFilter);
                         } else if (currentProductionCategory === 'crafting') {
-                            if (currentSubFilter === 'all') return item.type.startsWith('crafting_');
+                            if (currentSubFilter === 'all') return item.type && item.type.startsWith('crafting_');
                             return (item.type === currentSubFilter);
                         } else if (currentProductionCategory === 'cooking') { 
                             return (item.type === 'cooking'); 
@@ -2223,18 +2225,19 @@
             tbody.innerHTML = "";
             if (!data.length) { tbody.innerHTML = `<tr><td colspan="10" class="loading-overlay">No items found</td></tr>`; return; }
             data.forEach(item => {
+                if (!item) return;
                 let tr = document.createElement('tr');
                 tr.onclick = () => openGraph(item);
-                let marginSign = item.margin > 0 ? "+" : "";
+                let marginSign = (item.margin || 0) > 0 ? "+" : "";
                 let isFav = userFavorites.includes(item.id);
 
                 tr.innerHTML = `
                     <td onclick="event.stopPropagation();"><button class="fav-star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite(${item.id}, event)">${isFav ? '★' : '☆'}</button></td>
-                    <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon"></td>
-                    <td><b>${item.name}</b></td><td>${item.buy.toLocaleString()}</td><td>${item.sell.toLocaleString()}</td>
-                    <td class="tax-text">${item.tax > 0 ? '-' + item.tax.toLocaleString() : '0'}</td><td class="${item.margin > 0 ? 'highlight' : 'neg-highlight'}">${marginSign}${item.margin.toLocaleString()}</td>
-                    <td class="${item.trendClass}">${item.trendIcon} ${item.trend}</td><td class="${item.aiBadgeClass}">${item.aiRating} (${item.aiScore})</td>
-                    <td>${item.volume.toLocaleString()}</td><td>${item.limit.toLocaleString()}</td>
+                    <td><img src="${item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" width="26" height="26" loading="lazy" alt="icon"></td>
+                    <td><b>${item.name || 'Unknown'}</b></td><td>${(item.buy || 0).toLocaleString()}</td><td>${(item.sell || 0).toLocaleString()}</td>
+                    <td class="tax-text">${(item.tax || 0) > 0 ? '-' + (item.tax || 0).toLocaleString() : '0'}</td><td class="${(item.margin || 0) > 0 ? 'highlight' : 'neg-highlight'}">${marginSign}${(item.margin || 0).toLocaleString()}</td>
+                    <td class="${item.trendClass || 'tax-text'}">${item.trendIcon || '⚖️'} ${item.trend || 'Stable'}</td><td class="${item.aiBadgeClass || 'tax-text'}">${item.aiRating || 'Medium'} (${item.aiScore || 50})</td>
+                    <td>${(item.volume || 0).toLocaleString()}</td><td>${(item.limit || 0).toLocaleString()}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -2245,13 +2248,14 @@
             tbody.innerHTML = "";
             if (!data.length) { tbody.innerHTML = `<tr><td colspan="6" class="loading-overlay">No alch items found</td></tr>`; return; }
             data.forEach(item => {
+                if (!item) return;
                 let tr = document.createElement('tr');
                 tr.onclick = () => openGraph(item);
-                let alchSign = item.alch_profit > 0 ? "+" : "";
+                let alchSign = (item.alch_profit || 0) > 0 ? "+" : "";
                 tr.innerHTML = `
-                    <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon"></td>
-                    <td><b>${item.name}</b></td><td>${item.buy.toLocaleString()}</td><td>${item.alch_value.toLocaleString()}</td>
-                    <td class="${item.alch_profit > 0 ? 'alch-highlight' : 'neg-highlight'}">${alchSign}${item.alch_profit.toLocaleString()}</td><td>${item.limit.toLocaleString()}</td>
+                    <td><img src="${item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" width="26" height="26" loading="lazy" alt="icon"></td>
+                    <td><b>${item.name || 'Unknown'}</b></td><td>${(item.buy || 0).toLocaleString()}</td><td>${(item.alch_value || 0).toLocaleString()}</td>
+                    <td class="${(item.alch_profit || 0) > 0 ? 'alch-highlight' : 'neg-highlight'}">${alchSign}${(item.alch_profit || 0).toLocaleString()}</td><td>${(item.limit || 0).toLocaleString()}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -2262,19 +2266,20 @@
             tbody.innerHTML = "";
             if (!data.length) { tbody.innerHTML = `<tr><td colspan="8" class="loading-overlay">No recipes found</td></tr>`; return; }
             data.forEach(item => {
+                if (!item) return;
                 let tr = document.createElement('tr');
                 tr.onclick = () => openGraph(item);
-                let profitSign = item.profit > 0 ? "+" : "";
-                let alchSign = item.alch_profit > 0 ? "+" : "";
-                let ingText = item.ingredients.map(ing => `${ing.quantity}x ${ing.name}`).join(', ');
-                let yieldText = item.yield_amount > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield_amount}x)</span>` : "";
+                let profitSign = (item.profit || 0) > 0 ? "+" : "";
+                let alchSign = (item.alch_profit || 0) > 0 ? "+" : "";
+                let ingText = (item.ingredients || []).map(ing => `${ing.quantity}x ${ing.name}`).join(', ');
+                let yieldText = (item.yield_amount || 1) > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield_amount}x)</span>` : "";
 
                 tr.innerHTML = `
-                    <td><img src="${item.icon}" width="26" height="26" loading="lazy" alt="icon"></td>
-                    <td><b>${item.name}</b>${yieldText}</td><td><span style="color:#FF9800; font-weight:bold;">${item.level}</span></td>
-                    <td class="ing-text">${ingText}</td><td>${item.cost.toLocaleString()}</td><td>${item.sell.toLocaleString()}</td>
-                    <td class="${item.profit > 0 ? 'highlight' : 'neg-highlight'}">${profitSign}${item.profit.toLocaleString()}</td>
-                    <td class="${item.alch_profit > 0 ? 'alch-highlight' : 'neg-highlight'}">${alchSign}${item.alch_profit.toLocaleString()}</td>
+                    <td><img src="${item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" width="26" height="26" loading="lazy" alt="icon"></td>
+                    <td><b>${item.name || 'Unknown'}</b>${yieldText}</td><td><span style="color:#FF9800; font-weight:bold;">${item.level || 1}</span></td>
+                    <td class="ing-text">${ingText}</td><td>${(item.cost || 0).toLocaleString()}</td><td>${(item.sell || 0).toLocaleString()}</td>
+                    <td class="${(item.profit || 0) > 0 ? 'highlight' : 'neg-highlight'}">${profitSign}${(item.profit || 0).toLocaleString()}</td>
+                    <td class="${(item.alch_profit || 0) > 0 ? 'alch-highlight' : 'neg-highlight'}">${alchSign}${(item.alch_profit || 0).toLocaleString()}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -2285,6 +2290,7 @@
             grid.innerHTML = "";
             if (!data.length) { grid.innerHTML = `<div class="loading-overlay" style="grid-column: 1 / -1;">No items found</div>`; return; }
             data.forEach(item => {
+                if (!item) return;
                 let div = document.createElement('div');
                 div.className = "card";
                 div.onclick = () => openGraph(item);
@@ -2293,16 +2299,16 @@
                 div.innerHTML = `
                     <div class="card-header">
                         <button class="fav-star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite(${item.id}, event)">${isFav ? '★' : '☆'}</button>
-                        <img src="${item.icon}" loading="lazy" alt="icon">
-                        <div class="card-title">${item.name}</div>
+                        <img src="${item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" loading="lazy" alt="icon">
+                        <div class="card-title">${item.name || 'Unknown'}</div>
                     </div>
                     <div style="width: 100%;">
-                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${item.buy.toLocaleString()} / ${item.sell.toLocaleString()}</span></div>
-                        <div class="card-row"><span class="label">Margin:</span><span class="${item.margin > 0 ? 'highlight' : 'neg-highlight'}">+${item.margin.toLocaleString()} gp</span></div>
-                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${item.volume.toLocaleString()} / ${item.limit.toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${(item.buy || 0).toLocaleString()} / ${(item.sell || 0).toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Margin:</span><span class="${(item.margin || 0) > 0 ? 'highlight' : 'neg-highlight'}">+${(item.margin || 0).toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${(item.volume || 0).toLocaleString()} / ${(item.limit || 0).toLocaleString()}</span></div>
                         <div class="card-badges">
-                            <span class="badge ${item.trendClass}">${item.trendIcon} ${item.trend}</span>
-                            <span class="badge ${item.dataRatingClass}">Data: ${item.dataRatingText}</span>
+                            <span class="badge ${item.trendClass || 'tax-text'}">${item.trendIcon || '⚖️'} ${item.trend || 'Stable'}</span>
+                            <span class="badge ${item.dataRatingClass || 'tax-text'}">Data: ${item.dataRatingText || 'Poor'}</span>
                         </div>
                     </div>
                 `;
@@ -2311,11 +2317,12 @@
         }
 
         async function openGraph(item) {
+            if (!item) return;
             currentItemId = item.id;
             activeModalItem = item;
-            document.getElementById('modalTitle').innerText = item.name;
+            document.getElementById('modalTitle').innerText = item.name || 'Unknown';
             let iconEl = document.getElementById('modalIcon');
-            iconEl.src = item.icon;
+            iconEl.src = item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png';
 
             document.getElementById('modalSell').innerText = item.sell ? item.sell.toLocaleString() : '0';
             document.getElementById('modalBuy').innerText = item.buy ? item.buy.toLocaleString() : '0';
@@ -2363,7 +2370,7 @@
             document.getElementById('btn-' + range).classList.add('active');
 
             const historyData = itemHistories[currentItemId];
-            if (!historyData || !historyData.raw_times.length) return;
+            if (!historyData || !historyData.raw_times || !historyData.raw_times.length) return;
 
             const now = historyData.raw_times[historyData.raw_times.length - 1];
             let cutoffSeconds = now;
