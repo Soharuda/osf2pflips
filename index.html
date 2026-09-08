@@ -81,7 +81,7 @@
         h2 { color: var(--accent-orange); margin-top: 0; font-size: 1.2rem; margin-bottom: 12px; }
 
         /* Grid Layout */
-        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 8px; padding-top: 10px; }
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 8px; padding-top: 5px; }
         .card { background: var(--bg-card); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.1s, border-color 0.2s; position: relative; }
         .card:hover { border-color: var(--accent-green); transform: translateY(-2px); }
         .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -100,7 +100,7 @@
 
         .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; align-items: center; }
         input, select { flex-grow: 1; min-width: 150px; padding: 9px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; font-size: 0.85rem; box-sizing: border-box; }
-        select { max-width: 130px; flex-grow: 0; cursor: pointer; }
+        select { max-width: 140px; flex-grow: 0; cursor: pointer; }
         #viewToggleBtn { background: #2c2c2c; color: #fff; border: 1px solid var(--accent-green); padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
         
         .table-container { 
@@ -155,10 +155,6 @@
         .collapsible-content.open { display: block; }
 
         /* Custom Searchable Dropdown Layout Fixes */
-        .gains-form-grid { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 12px; align-items: flex-end; }
-        @media (max-width: 768px) {
-            .gains-form-grid { grid-template-columns: 1fr; }
-        }
         .searchable-select-wrapper { position: relative; width: 100%; }
         .searchable-select-input { width: 100%; padding: 9px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; font-size: 0.85rem; box-sizing: border-box; }
         .searchable-dropdown-list { display: none; position: absolute; left: 0; right: 0; top: 100%; margin-top: 2px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 5px; max-height: 175px; overflow-y: auto; z-index: 150; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
@@ -329,70 +325,45 @@
         <div id="view-gains" class="view-section">
             <h2>📈 Gains Tracker - Purchases & Sales</h2>
             
-            <!-- Mode Switcher Tabs for Purchase / Completed Sales -->
-            <div style="display: flex; gap: 6px; margin-bottom: 12px;">
-                <button id="gainsTabBuyBtn" class="auth-action-btn" onclick="switchGainsTab('buy')" style="background: var(--accent-green); color: #fff; border-color: var(--accent-green);">🛒 Active Inventory</button>
-                <button id="gainsTabSellBtn" class="auth-action-btn" onclick="switchGainsTab('sell')" style="background: #2c2c2c; color: var(--text-muted); border-color: #444;">💰 Completed Sales History</button>
+            <!-- Compact Action Header: Filter Dropdown + "Log Purchase" Trigger Button -->
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Filter:</label>
+                    <select id="gainsFilterSelect" onchange="renderGainsView()" style="padding: 6px 10px; min-width: 130px; font-size: 0.8rem;">
+                        <option value="all">All Purchases</option>
+                        <option value="active" selected>Active Only</option>
+                        <option value="completed">Completed Only</option>
+                    </select>
+                </div>
+                <button class="auth-action-btn" onclick="openLogPurchaseModal()" style="background: var(--accent-green); border-color: var(--accent-green); color: #fff;">➕ Log New Purchase</button>
             </div>
 
-            <!-- Purchase Form (Only shown on Active Inventory tab) -->
-            <div id="gainsBuyFormContainer" class="gains-form-grid">
-                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
-                    <label style="font-size: 0.75rem; color: var(--text-muted);">Select Item to Purchase</label>
-                    <div class="searchable-select-wrapper" id="searchableSelectWrapperBuy">
-                        <input type="text" id="gainsItemSearchInputBuy" class="searchable-select-input" placeholder="Type to search item..." autocomplete="off" oninput="filterGainsDropdown('buy')" onfocus="openGainsDropdown('buy')">
-                        <div id="gainsDropdownListBuy" class="searchable-dropdown-list"></div>
-                    </div>
-                    <input type="hidden" id="gainsSelectedItemIdBuy" value="">
+            <div style="display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
+                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 15px; flex: 1; min-width: 150px;">
+                    <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">Total Net Realized Profit</span>
+                    <span id="gainsTotalProfit" class="highlight" style="font-size: 1.1rem;">0 gp</span>
                 </div>
-
-                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
-                    <label style="font-size: 0.75rem; color: var(--text-muted);">Quantity Purchased</label>
-                    <input type="number" id="gainsQtyInputBuy" value="1" min="1" style="padding: 9px; width: 100%; box-sizing: border-box;">
+                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 15px; flex: 1; min-width: 150px;">
+                    <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">Active Batches Tracked</span>
+                    <span id="gainsTotalPurchasesCount" style="font-size: 1.1rem; color: #fff; font-weight: bold;">0</span>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
-                    <label style="font-size: 0.75rem; color: var(--text-muted);">Buy Price (Each)</label>
-                    <input type="number" id="gainsBuyInputPrice" placeholder="0" style="padding: 9px; width: 100%; box-sizing: border-box;">
-                </div>
-                <button class="auth-action-btn" onclick="logPurchaseEntry()" style="padding: 10px 16px; height: 41px; width: 100%; background: var(--accent-green); border-color: var(--accent-green); color: #fff;">Save Purchase</button>
-            </div>
-
-            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
-                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 20px; flex: 1; min-width: 160px;">
-                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Total Net Realized Profit</span>
-                    <span id="gainsTotalProfit" class="highlight" style="font-size: 1.2rem;">0 gp</span>
-                </div>
-                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 20px; flex: 1; min-width: 160px;">
-                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Active Purchases Tracked</span>
-                    <span id="gainsTotalPurchasesCount" style="font-size: 1.2rem; color: #fff; font-weight: bold;">0</span>
-                </div>
-                <button onclick="clearGainsHistory()" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold;">Clear All History</button>
+                <button onclick="clearGainsHistory()" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">Clear All</button>
             </div>
 
             <!-- Gains Performance Line Chart -->
-            <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-                <span style="font-size: 0.85rem; color: var(--accent-orange); font-weight: bold; display: block; margin-bottom: 8px;">Cumulative Realized Profit Over Time</span>
-                <div style="position: relative; height: 160px; width: 100%;">
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                <span style="font-size: 0.8rem; color: var(--accent-orange); font-weight: bold; display: block; margin-bottom: 6px;">Cumulative Realized Profit Over Time</span>
+                <div style="position: relative; height: 140px; width: 100%;">
                     <canvas id="gainsPerformanceChart"></canvas>
                 </div>
             </div>
 
-            <!-- Sub-tabs for Tables: Purchases vs Completed Sales History -->
-            <div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
-                <h3 id="gainsTableTitle" style="margin: 0; font-size: 1rem; color: var(--text-main);">Active Purchases / Inventory</h3>
-            </div>
+            <!-- Section Title -->
+            <h3 id="gainsTableTitle" style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--text-main);">Unified Purchase History</h3>
 
-            <div class="table-container">
-                <table id="gainsActiveTable">
-                    <thead>
-                        <tr id="gainsTableHeaders">
-                            <th>Icon</th><th>Item Name</th><th>Quantity</th><th>Buy Price (Ea)</th><th>Total Invested</th><th>Date Purchased</th><th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="gainsTableBody">
-                        <tr><td colspan="7" class="loading-overlay">No active purchases logged yet.</td></tr>
-                    </tbody>
-                </table>
+            <!-- Card Grid Container for Purchases -->
+            <div id="gainsCardGrid" class="card-grid">
+                <div class="loading-overlay">No purchases logged yet.</div>
             </div>
         </div>
 
@@ -542,7 +513,37 @@
         </div>
     </div>
 
-    <!-- Quick Sale Modal (Triggered directly from clicking Sell on a specific inventory row) -->
+    <!-- Log Purchase Modal (Triggered via "Log New Purchase" Button) -->
+    <div id="logPurchaseModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: left;">
+            <span class="close" onclick="closeLogPurchaseModal()">&times;</span>
+            <h3 style="color: var(--accent-green); margin-top: 0; text-align: center;">Log New Purchase</h3>
+            <form id="logPurchaseForm" onsubmit="event.preventDefault(); submitLogPurchase();" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Select Item to Purchase</label>
+                    <div class="searchable-select-wrapper" id="searchableSelectWrapperBuy">
+                        <input type="text" id="gainsItemSearchInputBuy" class="searchable-select-input" placeholder="Type to search item..." autocomplete="off" oninput="filterGainsDropdown('buy')" onfocus="openGainsDropdown('buy')">
+                        <div id="gainsDropdownListBuy" class="searchable-dropdown-list"></div>
+                    </div>
+                    <input type="hidden" id="gainsSelectedItemIdBuy" value="">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Quantity Purchased</label>
+                    <input type="number" id="gainsQtyInputBuy" value="1" min="1" style="width: 100%; box-sizing: border-box;" required>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Buy Price (Each)</label>
+                    <input type="number" id="gainsBuyInputPrice" placeholder="0" style="width: 100%; box-sizing: border-box;" required>
+                </div>
+
+                <button type="submit" class="auth-action-btn" style="padding: 10px; font-size: 0.9rem; margin-top: 5px; text-align: center; width: 100%; background: var(--accent-green); border-color: var(--accent-green); color: #fff;">Save Purchase</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Quick Sale Modal (Triggered directly from clicking Sell on a specific purchase card) -->
     <div id="quickSaleModal" class="modal">
         <div class="modal-content" style="max-width: 400px; text-align: left;">
             <span class="close" onclick="closeQuickSaleModal()">&times;</span>
@@ -551,7 +552,7 @@
                 <img id="quickSaleModalIcon" src="" width="32" height="32" alt="icon">
                 <div>
                     <div id="quickSaleItemName" style="font-weight: bold; color: #fff;">Item Name</div>
-                    <div id="quickSaleItemDetails" style="font-size: 0.75rem; color: var(--text-muted);">Bought at: 0 gp | Max Qty: 0</div>
+                    <div id="quickSaleItemDetails" style="font-size: 0.75rem; color: var(--text-muted);">Bought at: 0 gp | Remaining Qty: 0</div>
                 </div>
             </div>
             <form id="quickSaleForm" onsubmit="event.preventDefault(); submitQuickSale();" style="display: flex; flex-direction: column; gap: 10px;">
@@ -824,7 +825,6 @@
         let userProfile = { username: "", avatar: "" };
         let userPurchasesHistory = [];
         let userSalesHistory = [];
-        let activeGainsTab = 'buy';
 
         const safeInt = (val) => {
             const parsed = parseInt(val);
@@ -1036,35 +1036,19 @@
             }
         }
 
-        function switchGainsTab(tab) {
-            activeGainsTab = tab;
-            const buyBtn = document.getElementById('gainsTabBuyBtn');
-            const sellBtn = document.getElementById('gainsTabSellBtn');
-            const buyForm = document.getElementById('gainsBuyFormContainer');
-
-            if (tab === 'buy') {
-                buyBtn.style.background = 'var(--accent-green)';
-                buyBtn.style.color = '#fff';
-                buyBtn.style.borderColor = 'var(--accent-green)';
-                sellBtn.style.background = '#2c2c2c';
-                sellBtn.style.color = 'var(--text-muted)';
-                sellBtn.style.borderColor = '#444';
-                buyForm.style.display = 'grid';
-                document.getElementById('gainsTableTitle').innerText = "Active Purchases / Inventory";
-            } else {
-                sellBtn.style.background = 'var(--accent-orange)';
-                sellBtn.style.color = '#fff';
-                sellBtn.style.borderColor = 'var(--accent-orange)';
-                buyBtn.style.background = '#2c2c2c';
-                buyBtn.style.color = 'var(--text-muted)';
-                buyBtn.style.borderColor = '#444';
-                buyForm.style.display = 'none';
-                document.getElementById('gainsTableTitle').innerText = "Completed Sales History";
-            }
-            renderGainsView();
+        function openLogPurchaseModal() {
+            document.getElementById('gainsItemSearchInputBuy').value = "";
+            document.getElementById('gainsSelectedItemIdBuy').value = "";
+            document.getElementById('gainsQtyInputBuy').value = "1";
+            document.getElementById('gainsBuyInputPrice').value = "";
+            document.getElementById('logPurchaseModal').style.display = 'block';
         }
 
-        async function logPurchaseEntry() {
+        function closeLogPurchaseModal() {
+            document.getElementById('logPurchaseModal').style.display = 'none';
+        }
+
+        async function submitLogPurchase() {
             const itemId = safeInt(document.getElementById('gainsSelectedItemIdBuy').value);
             const qtyEl = document.getElementById('gainsQtyInputBuy');
             const priceEl = document.getElementById('gainsBuyInputPrice');
@@ -1083,14 +1067,17 @@
                 itemId: item.id,
                 name: item.name,
                 icon: item.icon,
-                quantity: qty,
+                initialQuantity: qty,
+                remainingQuantity: qty,
                 buyPrice: buyPrice,
                 totalCost: buyPrice * qty,
+                salesLog: [],
                 date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
 
             userPurchasesHistory.unshift(entry);
             await saveUserDataToSupabase();
+            closeLogPurchaseModal();
             renderGainsView();
             await updateHomeHeaderStats();
         }
@@ -1102,10 +1089,10 @@
             document.getElementById('quickSaleEntryId').value = purchase.id;
             document.getElementById('quickSaleModalIcon').src = purchase.icon;
             document.getElementById('quickSaleItemName').innerText = purchase.name;
-            document.getElementById('quickSaleItemDetails').innerText = `Bought at: ${purchase.buyPrice.toLocaleString()} gp (Ea) | Max Qty: ${purchase.quantity.toLocaleString()}`;
+            document.getElementById('quickSaleItemDetails').innerText = `Bought at: ${purchase.buyPrice.toLocaleString()} gp (Ea) | Remaining Qty: ${purchase.remainingQuantity.toLocaleString()}`;
             
-            document.getElementById('quickSaleQtyInput').value = purchase.quantity;
-            document.getElementById('quickSaleQtyInput').max = purchase.quantity;
+            document.getElementById('quickSaleQtyInput').value = purchase.remainingQuantity;
+            document.getElementById('quickSaleQtyInput').max = purchase.remainingQuantity;
             
             let itemMeta = cachedItemsMap[purchase.itemId];
             document.getElementById('quickSalePriceInput').value = itemMeta ? itemMeta.sell : purchase.buyPrice;
@@ -1122,45 +1109,47 @@
             const qty = Math.max(1, safeInt(document.getElementById('quickSaleQtyInput').value));
             const sellPrice = safeInt(document.getElementById('quickSalePriceInput').value);
 
-            let purchaseIndex = userPurchasesHistory.findIndex(p => p.id === entryId);
-            if (purchaseIndex === -1) {
+            let purchase = userPurchasesHistory.find(p => p.id === entryId);
+            if (!purchase) {
                 alert("Could not locate purchase batch.");
                 closeQuickSaleModal();
                 return;
             }
 
-            let purchase = userPurchasesHistory[purchaseIndex];
-            if (qty > purchase.quantity) {
-                alert(`Cannot sell more than the available quantity in this batch (${purchase.quantity}).`);
+            if (qty > purchase.remainingQuantity) {
+                alert(`Cannot sell more than the remaining quantity in this batch (${purchase.remainingQuantity}).`);
                 return;
             }
 
-            let unitCost = purchase.buyPrice;
-
-            // Reduce or remove the specific purchase batch
-            if (purchase.quantity > qty) {
-                purchase.quantity -= qty;
-                purchase.totalCost = purchase.quantity * purchase.buyPrice;
-            } else {
-                userPurchasesHistory.splice(purchaseIndex, 1);
-            }
+            purchase.remainingQuantity -= qty;
 
             let tax = sellPrice > 0 ? Math.min(Math.floor((sellPrice * qty) * 0.01), 5000000) : 0;
-            let netProfit = (sellPrice * qty) - (unitCost * qty) - tax;
+            let netProfit = (sellPrice * qty) - (purchase.buyPrice * qty) - tax;
 
             let saleEntry = {
                 id: Date.now(),
+                quantity: qty,
+                sellPrice: sellPrice,
+                buyPrice: purchase.buyPrice,
+                profit: netProfit,
+                date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            purchase.salesLog.unshift(saleEntry);
+
+            // Also keep legacy userSalesHistory in sync for charts
+            userSalesHistory.unshift({
+                id: saleEntry.id,
                 itemId: purchase.itemId,
                 name: purchase.name,
                 icon: purchase.icon,
                 quantity: qty,
                 sellPrice: sellPrice,
-                buyPrice: unitCost,
+                buyPrice: purchase.buyPrice,
                 profit: netProfit,
-                date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            };
+                date: saleEntry.date
+            });
 
-            userSalesHistory.unshift(saleEntry);
             await saveUserDataToSupabase();
             closeQuickSaleModal();
             renderGainsView();
@@ -1168,14 +1157,14 @@
         }
 
         async function deletePurchaseEntry(entryId) {
-            userPurchasesHistory = userPurchasesHistory.filter(e => e.id !== entryId);
-            await saveUserDataToSupabase();
-            renderGainsView();
-            await updateHomeHeaderStats();
-        }
+            let purchase = userPurchasesHistory.find(p => p.id === entryId);
+            if (!purchase) return;
 
-        async function deleteSaleEntry(entryId) {
-            userSalesHistory = userSalesHistory.filter(e => e.id !== entryId);
+            // Remove associated sales from userSalesHistory
+            let saleIds = purchase.salesLog.map(s => s.id);
+            userSalesHistory = userSalesHistory.filter(s => !saleIds.includes(s.id));
+
+            userPurchasesHistory = userPurchasesHistory.filter(e => e.id !== entryId);
             await saveUserDataToSupabase();
             renderGainsView();
             await updateHomeHeaderStats();
@@ -1198,7 +1187,7 @@
             }
             
             let totalRealizedProfit = userSalesHistory.reduce((sum, entry) => sum + entry.profit, 0);
-            let totalInvestedCapital = userPurchasesHistory.reduce((sum, entry) => sum + entry.totalCost, 0);
+            let totalInvestedCapital = userPurchasesHistory.reduce((sum, entry) => sum + (entry.remainingQuantity * entry.buyPrice), 0);
             let netPosition = totalRealizedProfit - totalInvestedCapital;
 
             if (totalProfitEl) {
@@ -1214,7 +1203,7 @@
             if (homeMiniChartObj) homeMiniChartObj.destroy();
 
             let combinedEvents = [
-                ...userPurchasesHistory.map(p => ({ time: p.id, val: -p.totalCost })),
+                ...userPurchasesHistory.map(p => ({ time: p.id, val: -(p.initialQuantity * p.buyPrice) })),
                 ...userSalesHistory.map(s => ({ time: s.id, val: s.profit }))
             ].sort((a, b) => a.time - b.time);
 
@@ -1284,7 +1273,6 @@
                 let div = document.createElement('div');
                 div.className = "card";
                 div.onclick = () => openGraph(item);
-                let isFav = true;
 
                 div.innerHTML = `
                     <div class="card-header">
@@ -1308,66 +1296,73 @@
         }
 
         function renderGainsView() {
-            const tbody = document.getElementById('gainsTableBody');
+            const gridContainer = document.getElementById('gainsCardGrid');
             const totalProfitEl = document.getElementById('gainsTotalProfit');
             const totalPurchasesEl = document.getElementById('gainsTotalPurchasesCount');
-            const tableHeaders = document.getElementById('gainsTableHeaders');
+            const filterVal = document.getElementById('gainsFilterSelect').value;
 
             let totalProfit = userSalesHistory.reduce((sum, entry) => sum + entry.profit, 0);
             totalProfitEl.innerText = (totalProfit >= 0 ? "+" : "") + totalProfit.toLocaleString() + " gp";
             totalProfitEl.className = totalProfit >= 0 ? "highlight" : "neg-highlight";
-            totalPurchasesEl.innerText = userPurchasesHistory.length;
+
+            let activeCount = userPurchasesHistory.filter(p => p.remainingQuantity > 0).length;
+            totalPurchasesEl.innerText = activeCount;
 
             renderGainsChart();
 
-            if (activeGainsTab === 'buy') {
-                tableHeaders.innerHTML = `<th>Icon</th><th>Item Name</th><th>Quantity</th><th>Buy Price (Ea)</th><th>Total Invested</th><th>Date Purchased</th><th>Actions</th>`;
-                if (!userPurchasesHistory.length) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="loading-overlay">No active purchases logged yet. Use the form above to track items.</td></tr>`;
-                    return;
-                }
-                tbody.innerHTML = "";
-                userPurchasesHistory.forEach(entry => {
-                    let tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td><img src="${entry.icon}" width="26" height="26" loading="lazy" alt="icon"></td>
-                        <td><b>${entry.name}</b></td>
-                        <td>${entry.quantity.toLocaleString()}</td>
-                        <td>${entry.buyPrice.toLocaleString()} gp</td>
-                        <td>${entry.totalCost.toLocaleString()} gp</td>
-                        <td style="color: var(--text-muted); font-size: 0.75rem;">${entry.date}</td>
-                        <td>
-                            <div style="display: flex; gap: 4px;">
-                                <button onclick="openQuickSaleModal(${entry.id})" style="background: var(--accent-orange); color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">Sell</button>
-                                <button onclick="deletePurchaseEntry(${entry.id})" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Delete</button>
-                            </div>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            } else {
-                tableHeaders.innerHTML = `<th>Icon</th><th>Item Name</th><th>Quantity</th><th>Buy Price</th><th>Sell Price</th><th>Realized Profit</th><th>Date Sold</th><th>Action</th>`;
-                if (!userSalesHistory.length) {
-                    tbody.innerHTML = `<tr><td colspan="8" class="loading-overlay">No completed sales logged yet. Click 'Sell' on any active purchase batch to record a sale.</td></tr>`;
-                    return;
-                }
-                tbody.innerHTML = "";
-                userSalesHistory.forEach(entry => {
-                    let tr = document.createElement('tr');
-                    let profitSign = entry.profit >= 0 ? "+" : "";
-                    tr.innerHTML = `
-                        <td><img src="${entry.icon}" width="26" height="26" loading="lazy" alt="icon"></td>
-                        <td><b>${entry.name}</b></td>
-                        <td>${entry.quantity.toLocaleString()}</td>
-                        <td>${entry.buyPrice.toLocaleString()} gp</td>
-                        <td>${entry.sellPrice.toLocaleString()} gp</td>
-                        <td class="${entry.profit >= 0 ? 'highlight' : 'neg-highlight'}">${profitSign}${entry.profit.toLocaleString()} gp</td>
-                        <td style="color: var(--text-muted); font-size: 0.75rem;">${entry.date}</td>
-                        <td><button onclick="deleteSaleEntry(${entry.id})" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Delete</button></td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+            // Filter purchases based on dropdown selection
+            let filteredPurchases = userPurchasesHistory.filter(p => {
+                if (filterVal === 'active') return p.remainingQuantity > 0;
+                if (filterVal === 'completed') return p.remainingQuantity === 0;
+                return true; // 'all'
+            });
+
+            if (!filteredPurchases.length) {
+                gridContainer.innerHTML = `<div class="loading-overlay" style="grid-column: 1 / -1;">No purchases found matching filter.</div>`;
+                return;
             }
+
+            gridContainer.innerHTML = "";
+            filteredPurchases.forEach(entry => {
+                let div = document.createElement('div');
+                div.className = "card";
+                div.style.cursor = "default";
+
+                let isCompleted = entry.remainingQuantity === 0;
+                let statusBadge = isCompleted 
+                    ? `<span class="badge highlight" style="background: rgba(76,175,80,0.1);">Status: Completed</span>`
+                    : `<span class="badge tax-text" style="background: rgba(255,152,0,0.1);">Status: Active (${entry.remainingQuantity.toLocaleString()} left)</span>`;
+
+                let salesHistoryHtml = "";
+                if (entry.salesLog && entry.salesLog.length > 0) {
+                    salesHistoryHtml = `<div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-color); font-size: 0.7rem; color: var(--text-muted);"><b>Sales Record:</b>`;
+                    entry.salesLog.forEach(s => {
+                        let pSign = s.profit >= 0 ? "+" : "";
+                        salesHistoryHtml += `<div style="display: flex; justify-content: space-between;"><span>${s.quantity}x @ ${s.sellPrice.toLocaleString()} gp</span><span class="${s.profit >= 0 ? 'highlight' : 'neg-highlight'}">${pSign}${s.profit.toLocaleString()} gp</span></div>`;
+                    });
+                    salesHistoryHtml += `</div>`;
+                }
+
+                div.innerHTML = `
+                    <div class="card-header">
+                        <img src="${entry.icon}" loading="lazy" alt="icon">
+                        <div class="card-title">${entry.name}</div>
+                    </div>
+                    <div style="width: 100%;">
+                        <div class="card-row"><span class="label">Initial Qty:</span><span>${(entry.initialQuantity || entry.quantity).toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Buy Price (Ea):</span><span>${entry.buyPrice.toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Total Invested:</span><span style="color: #ffa726; font-weight: bold;">${entry.totalCost.toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Date Purchased:</span><span style="color: var(--text-muted); font-size: 0.7rem;">${entry.date}</span></div>
+                        <div class="card-badges" style="margin-top: 4px;">${statusBadge}</div>
+                        ${salesHistoryHtml}
+                        <div style="display: flex; gap: 6px; margin-top: 8px; pt-8px; border-top: 1px solid var(--border-color);">
+                            ${!isCompleted ? `<button onclick="openQuickSaleModal(${entry.id})" style="flex: 1; background: var(--accent-orange); color: #fff; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">💰 Sell</button>` : ``}
+                            <button onclick="deletePurchaseEntry(${entry.id})" style="flex: ${isCompleted ? '1' : 'initial'}; background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Delete</button>
+                        </div>
+                    </div>
+                `;
+                gridContainer.appendChild(div);
+            });
         }
 
         function renderGainsChart() {
@@ -2399,6 +2394,7 @@
         function closeGraph() { document.getElementById('chartModal').style.display = "none"; }
         window.onclick = function(event) { 
             if (event.target == document.getElementById('chartModal')) document.getElementById('chartModal').style.display = "none";
+            if (event.target == document.getElementById('logPurchaseModal')) closeLogPurchaseModal();
             if (event.target == document.getElementById('quickSaleModal')) closeQuickSaleModal();
             if (event.target == document.getElementById('authModal')) closeAuthModal();
             if (event.target == document.getElementById('resetPasswordModal')) document.getElementById('resetPasswordModal').style.display = "none";
