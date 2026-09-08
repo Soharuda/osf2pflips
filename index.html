@@ -330,8 +330,8 @@
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Filter:</label>
                     <select id="gainsFilterSelect" onchange="renderGainsView()" style="padding: 6px 10px; min-width: 130px; font-size: 0.8rem;">
-                        <option value="all">All Purchases</option>
-                        <option value="active" selected>Active Only</option>
+                        <option value="all" selected>All Purchases</option>
+                        <option value="active">Active Only</option>
                         <option value="completed">Completed Only</option>
                     </select>
                 </div>
@@ -887,22 +887,32 @@
                 if (data) {
                     userFavorites = data.favorites || [];
                     userProfile = data.profile || { username: "", avatar: "" };
+                    userSalesHistory = data.sales || [];
                     
-                    // Map legacy or raw purchase history safely with defaults
+                    // Robust mapping for legacy purchases and missing remaining quantities
                     let rawPurchases = data.purchases || data.gains || [];
                     userPurchasesHistory = rawPurchases.map(entry => {
                         let qty = entry.initialQuantity || entry.quantity || 1;
-                        let remaining = entry.remainingQuantity !== undefined ? entry.remainingQuantity : qty;
+                        let remaining = entry.remainingQuantity !== undefined ? entry.remainingQuantity : 0;
+                        
+                        let matchedSales = userSalesHistory.filter(s => s.itemId === entry.itemId && !entry.salesLog);
+                        let salesLog = entry.salesLog || matchedSales.map(s => ({
+                            id: s.id || Date.now(),
+                            quantity: s.quantity || qty,
+                            sellPrice: s.sellPrice || 0,
+                            buyPrice: s.buyPrice || entry.buyPrice,
+                            profit: s.profit || 0,
+                            date: s.date || entry.date
+                        }));
+
                         return {
                             ...entry,
                             initialQuantity: qty,
                             remainingQuantity: remaining,
                             totalCost: entry.totalCost || (entry.buyPrice * qty),
-                            salesLog: entry.salesLog || []
+                            salesLog: salesLog
                         };
                     });
-
-                    userSalesHistory = data.sales || [];
                 } else if (error && error.code === 'PGRST116') {
                     await saveUserDataToSupabase();
                 }
