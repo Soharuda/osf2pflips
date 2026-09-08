@@ -887,7 +887,21 @@
                 if (data) {
                     userFavorites = data.favorites || [];
                     userProfile = data.profile || { username: "", avatar: "" };
-                    userPurchasesHistory = data.purchases || data.gains || [];
+                    
+                    // Map legacy or raw purchase history safely with defaults
+                    let rawPurchases = data.purchases || data.gains || [];
+                    userPurchasesHistory = rawPurchases.map(entry => {
+                        let qty = entry.initialQuantity || entry.quantity || 1;
+                        let remaining = entry.remainingQuantity !== undefined ? entry.remainingQuantity : qty;
+                        return {
+                            ...entry,
+                            initialQuantity: qty,
+                            remainingQuantity: remaining,
+                            totalCost: entry.totalCost || (entry.buyPrice * qty),
+                            salesLog: entry.salesLog || []
+                        };
+                    });
+
                     userSalesHistory = data.sales || [];
                 } else if (error && error.code === 'PGRST116') {
                     await saveUserDataToSupabase();
