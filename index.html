@@ -1,3 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/png" href="/icon.png">
+    <link rel="apple-touch-icon" href="/icon.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSRS F2P Market Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-base: #121212;
+            --bg-surface: #1e1e1e;
+            --bg-card: #252525;
+            --border-color: #333;
+            --accent-green: #4CAF50;
+            --accent-orange: #FF9800;
+            --accent-blue: #2196F3;
+            --text-main: #e0e0e0;
+            --text-muted: #aaa;
+        }
+
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-base); color: var(--text-main); margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; box-sizing: border-box; }
+
+        /* Sidebar Navigation Drawer */
+        .sidebar { width: 240px; background-color: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; flex-shrink: 0; position: fixed; height: 100vh; z-index: 100; left: 0; top: 0; transform: translateX(-100%); transition: transform 0.3s ease; }
+        .sidebar.open { transform: translateX(0); }
+        
+        .sidebar-header { padding: 15px; font-size: 1.1rem; font-weight: bold; color: var(--accent-green); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; }
+        
+        .toggle-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem; padding: 4px; border-radius: 4px; }
+        .toggle-btn:hover { color: #fff; background: #2a2a2a; }
+
+        .sidebar-menu { display: flex; flex-direction: column; gap: 4px; padding: 10px; overflow-y: auto; flex-grow: 1; }
+        .nav-btn { background: transparent; color: var(--text-muted); border: none; padding: 10px 12px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 0.9rem; font-weight: bold; transition: background 0.2s, color 0.2s; display: flex; align-items: center; gap: 10px; width: 100%; }
+        .nav-btn:hover { background: #2a2a2a; color: #fff; }
+        .nav-btn.active { background: var(--accent-green); color: #fff; }
+        .nav-btn.hidden-nav { display: none !important; }
+
+        /* Sidebar Submenu Dropdown for Production */
+        .nav-dropdown-container { display: flex; flex-direction: column; }
+        .submenu { display: none; flex-direction: column; gap: 2px; padding-left: 20px; margin-top: 2px; }
+        .submenu.open { display: flex; }
+        .sub-nav-btn { background: transparent; color: var(--text-muted); border: none; padding: 8px 10px; border-radius: 5px; cursor: pointer; text-align: left; font-size: 0.8rem; font-weight: bold; transition: background 0.2s, color 0.2s; display: flex; align-items: center; gap: 8px; width: 100%; }
+        .sub-nav-btn img { width: 16px; height: 16px; object-fit: contain; }
+        .sub-nav-btn:hover { background: #2a2a2a; color: #fff; }
+        .sub-nav-btn.active { background: var(--accent-orange); color: #fff; }
+
+        .nested-submenu { display: none; flex-direction: column; gap: 2px; padding-left: 20px; margin-top: 2px; }
+        .nested-submenu.open { display: flex; }
+
+        /* Main Content Area */
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; padding: 15px; box-sizing: border-box; width: 100%; }
+        
+        .main-header-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; position: relative; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .main-header-bar h1 { font-size: 1.2rem; color: var(--accent-green); margin: 0; cursor: pointer; transition: opacity 0.2s; }
+        .main-header-bar h1:hover { opacity: 0.8; }
+
+        .auth-action-btn { background: #2c2c2c; color: var(--accent-orange); border: 1px solid var(--accent-orange); padding: 6px 12px; border-radius: 5px; font-weight: bold; font-size: 0.8rem; cursor: pointer; white-space: nowrap; transition: background 0.2s; }
+        .auth-action-btn:hover { background: #3c3c3c; color: #fff; }
+        
+        .header-auth-container { display: flex; align-items: center; gap: 8px; position: relative; }
+        .header-auth-profile { display: none; align-items: center; gap: 8px; background: #222; border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+        .header-auth-profile:hover { background: #2a2a2a; border-color: var(--accent-orange); }
+        .header-auth-profile img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+        .header-auth-profile span { font-size: 0.8rem; font-weight: bold; color: var(--text-main); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Top-Right Dropdown Menu */
+        .user-dropdown-menu { display: none; position: absolute; right: 0; top: 100%; margin-top: 6px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); width: 160px; z-index: 200; flex-direction: column; overflow: hidden; }
+        .user-dropdown-menu.open { display: flex; }
+        .dropdown-item { background: transparent; border: none; color: var(--text-main); padding: 10px 12px; font-size: 0.85rem; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; transition: background 0.2s; }
+        .dropdown-item:hover { background: #2a2a2a; color: #fff; }
+        .dropdown-item.danger { color: var(--neg-highlight); }
+        .dropdown-item.danger:hover { background: #2c1a1a; }
+
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
+        h2 { color: var(--accent-orange); margin-top: 0; font-size: 1.2rem; margin-bottom: 12px; }
+
+        /* Grid Layout */
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 8px; padding-top: 5px; }
+        .card { background: var(--bg-card); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.1s, border-color 0.2s; position: relative; }
+        .card:hover { border-color: var(--accent-green); transform: translateY(-2px); }
+        .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .card-header img { width: 32px; height: 32px; object-fit: contain; }
+        .card-title { font-weight: bold; color: #fff; font-size: 0.85rem; line-height: 1.1; flex-grow: 1; }
+        .card-row { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px; }
+        .card-row .label { color: var(--text-muted); }
+        .card-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; font-size: 0.65rem; }
+        .badge { padding: 3px 5px; border-radius: 4px; font-weight: bold; background: #181818; border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 3px; }
+        .card-footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color); text-align: center; color: var(--accent-orange); font-weight: bold; font-size: 0.75rem; }
+
+        /* Favorite Star Button */
+        .fav-star-btn { background: transparent; border: none; cursor: pointer; font-size: 1.1rem; color: #555; padding: 2px; transition: color 0.2s, transform 0.1s; }
+        .fav-star-btn:hover { transform: scale(1.15); }
+        .fav-star-btn.active { color: #FFD700; }
+
+        .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; align-items: center; }
+        input, select { flex-grow: 1; min-width: 150px; padding: 9px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; font-size: 0.85rem; box-sizing: border-box; }
+        select { max-width: 140px; flex-grow: 0; cursor: pointer; }
+        #viewToggleBtn { background: #2c2c2c; color: #fff; border: 1px solid var(--accent-green); padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
+        
+        .table-container { 
+            max-height: calc(100vh - 200px); 
+            overflow-y: auto; 
+            border: 1px solid var(--border-color); 
+            border-radius: 6px; 
+            background: var(--bg-surface); 
+        }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; background: var(--bg-surface); }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th { background: #2c2c2c; color: #ffa726; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 10; }
+        th:hover { background: #3c3c3c; }
+        tr { cursor: pointer; }
+        tr:hover { background: #2a2a2a; }
+        
+        .highlight { color: #00E676; font-weight: bold; }
+        .neg-highlight { color: #FF5252; font-weight: bold; }
+        .alch-highlight { color: #29b6f6; font-weight: bold; }
+        .tax-text { color: #ffab40; font-weight: bold; }
+        .ing-text { font-size: 0.7rem; color: var(--text-muted); }
+        
+        /* Mobile Popup / Modal Fixes */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); overflow-y: auto; padding: 12px; box-sizing: border-box; -webkit-overflow-scrolling: touch; }
+        .modal-content { background-color: var(--bg-surface); margin: auto; margin-top: 10vh; margin-bottom: 10vh; padding: 15px; border-radius: 10px; width: 100%; max-width: 500px; color: #fff; position: relative; text-align: center; box-sizing: border-box; max-height: 85vh; overflow-y: auto; }
+        .close { color: var(--text-muted); float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover { color: #fff; }
+        
+        .modal-header { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; }
+        .modal-header h3 { margin: 0; color: var(--accent-green); font-size: 1.2rem; }
+        .modal-header img { width: 44px; height: 44px; object-fit: contain; margin-top: 4px; }
+
+        .modal-stats-table { width: 100%; border-collapse: collapse; background: #161616; border-radius: 6px; overflow: hidden; margin-bottom: 8px; font-size: 0.8rem; }
+        .modal-stats-table th, .modal-stats-table td { padding: 6px 8px; border: 1px solid var(--border-color); text-align: center; }
+        .modal-stats-table th { background: #222; color: #ffa726; font-size: 0.75rem; }
+
+        .tooltip-trigger { cursor: pointer; text-decoration: underline dotted; display: inline-block; }
+        .rating-tooltip-box { display: none; background: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 8px 10px; font-size: 0.75rem; color: #ddd; margin-top: 6px; text-align: left; line-height: 1.3; }
+
+        .btn-group { display: flex; gap: 4px; margin-bottom: 12px; justify-content: center; flex-wrap: wrap; }
+        .btn-group button { background: #2c2c2c; color: #fff; border: 1px solid #444; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        .btn-group button.active { background: var(--accent-green); border-color: var(--accent-green); }
+        .chart-container { position: relative; margin-bottom: 15px; height: 180px; width: 100%; }
+        .loading-overlay { text-align: center; color: #ffa726; padding: 20px; font-size: 0.9rem; grid-column: 1 / -1; }
+        .error-overlay { text-align: center; color: #FF5252; padding: 20px; font-size: 0.85rem; word-break: break-all; grid-column: 1 / -1; }
+
+        /* Collapsible Accordion Box for Suggestions */
+        .collapsible-box { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 15px; overflow: hidden; }
+        .collapsible-header { background: #222; color: var(--accent-orange); padding: 12px 15px; font-size: 0.9rem; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+        .collapsible-header:hover { background: #282828; }
+        .collapsible-content { padding: 12px; display: none; }
+        .collapsible-content.open { display: block; }
+
+        /* Custom Searchable Dropdown Layout Fixes */
+        .searchable-select-wrapper { position: relative; width: 100%; }
+        .searchable-select-input { width: 100%; padding: 9px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; font-size: 0.85rem; box-sizing: border-box; }
+        .searchable-dropdown-list { display: none; position: absolute; left: 0; right: 0; top: 100%; margin-top: 2px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 5px; max-height: 175px; overflow-y: auto; z-index: 150; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .searchable-dropdown-list.open { display: block; }
+        .searchable-dropdown-item { padding: 8px 12px; font-size: 0.85rem; color: var(--text-main); cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .searchable-dropdown-item img { width: 20px; height: 20px; object-fit: contain; }
+        .searchable-dropdown-item:hover { background: #2a2a2a; color: #fff; }
+
+        /* Password Strength Checklist */
+        .password-requirements { display: none; flex-direction: column; gap: 3px; font-size: 0.75rem; margin-top: 4px; background: #161616; padding: 8px; border-radius: 5px; border: 1px solid var(--border-color); }
+        .req-item { color: var(--neg-highlight); display: flex; align-items: center; gap: 6px; }
+        .req-item.met { color: var(--accent-green); }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Navigation Drawer -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span>Menu</span>
+            <button class="toggle-btn" onclick="toggleSidebar()">✕</button>
+        </div>
+        <div class="sidebar-menu">
+            <button class="nav-btn active" onclick="switchView('home', this)">🏠 Dashboard</button>
+            <button class="nav-btn" onclick="switchView('flips', this)">📦 All Items</button>
+            <button class="nav-btn hidden-nav" id="navFavoritesBtn" onclick="switchView('favorites', this)">⭐ Favorites</button>
+            <button class="nav-btn hidden-nav" id="navGainsBtn" onclick="switchView('gains', this)">📈 Gains Tracker</button>
+            <button class="nav-btn" onclick="switchView('alch', this)">🧙‍♂️ High Alch Hub</button>
+            
+            <!-- Production Hub with Popdown Submenus -->
+            <div class="nav-dropdown-container">
+                <button class="nav-btn" id="prodMenuBtn" onclick="toggleProductionMenu()">⚒️ Production Hub ▾</button>
+                <div class="submenu" id="productionSubmenu">
+                    <!-- Crafting Submenu -->
+                    <div class="nav-dropdown-container">
+                        <button class="sub-nav-btn" onclick="toggleSubmenu('craftingSubmenu')">💎 Crafting ▾</button>
+                        <div class="nested-submenu" id="craftingSubmenu">
+                            <button class="sub-nav-btn" onclick="setProductionCategory('crafting', 'all', this)">All Crafting</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('crafting', 'crafting_jewelry', this)"><img src="https://oldschool.runescape.wiki/images/Gold_ring.png" alt="Jewelry"> Jewelry & Gems</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('crafting', 'crafting_leather', this)"><img src="https://oldschool.runescape.wiki/images/Leather_body.png" alt="Leather"> Leather</button>
+                        </div>
+                    </div>
+
+                    <!-- Smithing Submenu -->
+                    <div class="nav-dropdown-container">
+                        <button class="sub-nav-btn" onclick="toggleSubmenu('smithingSubmenu')">⚒️ Smithing ▾</button>
+                        <div class="nested-submenu" id="smithingSubmenu">
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'all', this)">All Metals</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'smithing_bronze', this)"><img src="https://oldschool.runescape.wiki/images/Bronze_bar.png" alt="Bronze"> Bronze</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'smithing_iron', this)"><img src="https://oldschool.runescape.wiki/images/Iron_bar.png" alt="Iron"> Iron</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'smithing_steel', this)"><img src="https://oldschool.runescape.wiki/images/Steel_bar.png" alt="Steel"> Steel</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'smithing_mithril', this)"><img src="https://oldschool.runescape.wiki/images/Mithril_bar.png" alt="Mithril"> Mithril</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'smithing_adamant', this)"><img src="https://oldschool.runescape.wiki/images/Adamantite_bar.png" alt="Adamant"> Adamant</button>
+                            <button class="sub-nav-btn" onclick="setProductionCategory('smithing', 'smithing_runite', this)"><img src="https://oldschool.runescape.wiki/images/Runite_bar.png" alt="Runite"> Runite</button>
+                        </div>
+                    </div>
+
+                    <!-- Cooking Direct Item -->
+                    <button class="sub-nav-btn" onclick="setProductionCategory('cooking', 'cooking', this)"><img src="https://oldschool.runescape.wiki/images/Lobster.png" alt="Cooking"> Cooking</button>
+
+                    <!-- Runecrafting Direct Item -->
+                    <button class="sub-nav-btn" onclick="setProductionCategory('runecrafting', 'runecrafting', this)"><img src="https://oldschool.runescape.wiki/images/Air_rune.png" alt="Runecrafting"> Runecrafting</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Panel -->
+    <div class="main-content">
+
+        <!-- Top Header Bar with Clickable Title -->
+        <div class="main-header-bar">
+            <div class="header-left">
+                <button class="toggle-btn" onclick="toggleSidebar()" style="font-size: 1.3rem;">☰</button>
+                <h1 onclick="switchView('home', document.querySelector('.sidebar-menu .nav-btn'))">🪙 OSRS F2P Dashboard</h1>
+            </div>
+            <div class="header-auth-container">
+                <button class="auth-action-btn" id="authActionButton" onclick="openAuthModal()">Sign In</button>
+                
+                <!-- Logged-in Top-Right Profile Pill with Dropdown -->
+                <div class="header-auth-profile" id="headerAuthProfile" onclick="toggleUserDropdown(event)">
+                    <img id="headerAvatarImg" src="https://oldschool.runescape.wiki/images/Placeholder.png" alt="Avatar">
+                    <span id="headerUsernameLabel">Account</span>
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">▾</span>
+                </div>
+                
+                <div class="user-dropdown-menu" id="userDropdownMenu">
+                    <button class="dropdown-item" onclick="switchView('account'); closeUserDropdown();">👤 Account Page</button>
+                    <button class="dropdown-item danger" onclick="handleSignOut(); closeUserDropdown();">🚪 Sign Out</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- HOME VIEW -->
+        <div id="view-home" class="view-section active">
+            <!-- General Net Profit Header Card & Performance Chart -->
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Total Net Gain / Loss (Realized - Deployed Capital)</span>
+                    <span id="homeTotalProfitDisplay" class="highlight" style="font-size: 1.5rem; font-weight: bold;">0 gp</span>
+                </div>
+                <div style="flex: 1; min-width: 250px; max-width: 400px; height: 60px; position: relative;">
+                    <canvas id="homeMiniPerformanceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Top 2 Profit Favorites Section (Visible only when signed in and favorites exist) -->
+            <div id="homeFavoritesSection" style="display: none; margin-bottom: 15px;">
+                <h2 style="font-size: 1rem; color: var(--accent-green); margin-bottom: 8px;">⭐ Top Favorite Profit Opportunities</h2>
+                <div id="homeFavoritesContainer" class="card-grid" style="padding-top: 0;"></div>
+            </div>
+
+            <!-- Collapsible Top Recommendations Section (Default Closed) -->
+            <div class="collapsible-box">
+                <div class="collapsible-header" onclick="toggleCollapsibleBox()">
+                    <span id="recSummary">⚡ Top Recommended Flips</span>
+                    <span id="collapsibleArrow">▼</span>
+                </div>
+                <div class="collapsible-content" id="collapsibleContent">
+                    <div id="recContainer" class="card-grid" style="padding-top: 0;">
+                        <div class="loading-overlay">Loading market data...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ALL ITEMS VIEW -->
+        <div id="view-flips" class="view-section">
+            <h2>Market Explorer - All Items</h2>
+            <div class="controls">
+                <input type="text" id="searchFlipsInput" onkeyup="filterAndSortData()" placeholder="Search item...">
+                <select id="pageSizeSelect" onchange="changePageSize()">
+                    <option value="25">25 per page</option>
+                    <option value="50">50 per page</option>
+                    <option value="100">100 per page</option>
+                    <option value="250">250 per page</option>
+                </select>
+                <button id="viewToggleBtn" onclick="toggleViewMode()">🔲 Grid View</button>
+            </div>
+            <div id="paginationFlipsControls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem;">
+                <button onclick="changePage(-1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Previous</button>
+                <span id="pageFlipsIndicator" style="color:#aaa; font-weight:bold;">Page 1 of 1</span>
+                <button onclick="changePage(1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Next</button>
+            </div>
+            <div class="table-container" id="tableContainerEl">
+                <table id="itemTable">
+                    <thead>
+                        <tr id="tableHeaders"></tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr><td colspan="10" class="loading-overlay">Loading data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="gridContainerEl" class="card-grid" style="display: none;"></div>
+        </div>
+
+        <!-- FAVORITES VIEW -->
+        <div id="view-favorites" class="view-section">
+            <h2>⭐ Your Favorite Items</h2>
+            <div class="controls">
+                <input type="text" id="searchFavInput" onkeyup="filterAndSortData()" placeholder="Search favorites...">
+            </div>
+            <div id="favoritesGrid" class="card-grid"></div>
+        </div>
+
+        <!-- GAINS TRACKER VIEW -->
+        <div id="view-gains" class="view-section">
+            <h2>📈 Gains Tracker - Purchases & Sales</h2>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">Filter:</label>
+                    <select id="gainsFilterSelect" onchange="renderGainsView()" style="padding: 6px 10px; min-width: 130px; font-size: 0.8rem;">
+                        <option value="all" selected>All Transactions</option>
+                        <option value="active">Active Batches</option>
+                        <option value="completed">Completed Sales</option>
+                    </select>
+                </div>
+                <button class="auth-action-btn" onclick="openLogPurchaseModal()" style="background: var(--accent-green); border-color: var(--accent-green); color: #fff;">➕ Log New Purchase</button>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
+                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 15px; flex: 1; min-width: 150px;">
+                    <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">Total Net Realized Profit</span>
+                    <span id="gainsTotalProfit" class="highlight" style="font-size: 1.1rem;">0 gp</span>
+                </div>
+                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 15px; flex: 1; min-width: 150px;">
+                    <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">Active Batches Tracked</span>
+                    <span id="gainsTotalPurchasesCount" style="font-size: 1.1rem; color: #fff; font-weight: bold;">0</span>
+                </div>
+                <button onclick="clearGainsHistory()" style="background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">Clear All</button>
+            </div>
+
+            <!-- Gains Performance Line Chart -->
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                <span style="font-size: 0.8rem; color: var(--accent-orange); font-weight: bold; display: block; margin-bottom: 6px;">Cumulative Realized Profit Over Time</span>
+                <div style="position: relative; height: 140px; width: 100%;">
+                    <canvas id="gainsPerformanceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Section Title -->
+            <h3 id="gainsTableTitle" style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--text-main);">Transaction History</h3>
+
+            <!-- Card Grid Container for Purchases & Sales -->
+            <div id="gainsCardGrid" class="card-grid">
+                <div class="loading-overlay">No history logged yet.</div>
+            </div>
+        </div>
+
+        <!-- ACCOUNT PAGE VIEW -->
+        <div id="view-account" class="view-section">
+            <h2>👤 Account Settings</h2>
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; max-width: 450px; display: flex; flex-direction: column; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <img id="accountViewAvatar" src="https://oldschool.runescape.wiki/images/Placeholder.png" alt="Profile Picture" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-green);">
+                    <div>
+                        <h3 id="accountViewEmail" style="margin: 0; color: #fff; font-size: 1rem;">user@email.com</h3>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Manage your public profile information</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Display Username</label>
+                    <input type="text" id="accountUsernameInput" placeholder="Enter display username" style="width: 100%;">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 0.80rem; color: var(--text-muted);">Profile Picture URL</label>
+                    <input type="text" id="accountAvatarInput" placeholder="https://example.com/avatar.png" style="width: 100%;">
+                </div>
+
+                <div id="accountMessageStatus" style="font-size: 0.75rem; min-height: 16px;"></div>
+
+                <button class="auth-action-btn" id="saveAccountBtn" onclick="saveAccountSettings()" style="padding: 10px; text-align: center; width: 100%;">Save Changes</button>
+            </div>
+        </div>
+
+        <!-- HIGH ALCH HUB VIEW -->
+        <div id="view-alch" class="view-section">
+            <h2>High Alchemy Hub</h2>
+            <div class="controls">
+                <input type="text" id="searchAlchInput" onkeyup="filterAndSortData()" placeholder="Search alch item...">
+            </div>
+            <div id="paginationAlchControls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem;">
+                <button onclick="changePage(-1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Previous</button>
+                <span id="pageAlchIndicator" style="color:#aaa; font-weight:bold;">Page 1 of 1</span>
+                <button onclick="changePage(1)" style="background:#2c2c2c; color:#fff; border:1px solid #444; padding:5px 12px; border-radius:4px; cursor:pointer;">Next</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Icon</th><th onclick="toggleSort('name')">Item ↕</th><th onclick="toggleSort('buy')">Buy Price ↕</th>
+                            <th onclick="toggleSort('alch_value')">Alch Value ↕</th><th onclick="toggleSort('alch_profit')">Profit/Cast ↕</th><th onclick="toggleSort('limit')">Limit ↕</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alchTableBody">
+                        <tr><td colspan="6" class="loading-overlay">Loading alch data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PRODUCTION HUB VIEW -->
+        <div id="view-production" class="view-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
+                <h2 id="productionTitle" style="margin: 0;">Production & Crafting Hub</h2>
+                <div id="rcLevelConfigContainer" style="display: none; align-items: center; gap: 6px; font-size: 0.85rem; background: var(--bg-surface); padding: 4px 10px; border: 1px solid var(--border-color); border-radius: 6px;">
+                    <span style="color: var(--text-muted); font-weight: bold;">Runecrafting Level:</span>
+                    <input type="number" id="rcPlayerLevel" value="1" min="1" max="99" onchange="filterAndSortData()" style="padding: 4px 8px; width: 60px; font-size: 0.85rem;">
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Icon</th><th onclick="toggleSort('name')">Product ↕</th><th onclick="toggleSort('level')">Lvl ↕</th>
+                            <th>Ingredients Required</th><th onclick="toggleSort('cost')">Craft Cost ↕</th><th onclick="toggleSort('sell')">Sell Price ↕</th>
+                            <th onclick="toggleSort('profit')">GE Profit ↕</th><th onclick="toggleSort('alch_profit')">Alch Profit ↕</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productionTableBody">
+                        <tr><td colspan="8" class="loading-overlay">Loading production recipes...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Chart Modal -->
+    <div id="chartModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeGraph()">&times;</span>
+            <div class="modal-header">
+                <h3 id="modalTitle"></h3>
+                <img id="modalIcon" src="" alt="Item Icon" onerror="this.onerror=null; this.src='https://oldschool.runescape.wiki/images/Placeholder.png';">
+            </div>
+
+            <table class="modal-stats-table">
+                <thead>
+                    <tr>
+                        <th>Buy (Low)</th>
+                        <th>Sell (High)</th>
+                        <th>Margin / Profit</th>
+                        <th>24h Volume</th>
+                        <th>Buy Limit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td id="modalBuy">0</td>
+                        <td id="modalSell">0</td>
+                        <td id="modalMargin">0</td>
+                        <td id="modalVolume">0</td>
+                        <td id="modalLimit">0</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <table class="modal-stats-table" style="margin-bottom: 6px;">
+                <thead>
+                    <tr>
+                        <th>24h Trend</th>
+                        <th>Data Rating</th>
+                        <th>High Alch</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td id="modalTrend">-</td>
+                        <td>
+                            <span id="modalDataRating" class="tooltip-trigger" onclick="toggleRatingExplanation()">-</span>
+                        </td>
+                        <td id="modalAlch">0</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div id="ratingExplanationBox" class="rating-tooltip-box"></div>
+
+            <div class="btn-group" style="margin-top: 12px;">
+                <button onclick="setTimeframe('1h')" id="btn-1h">1H</button>
+                <button onclick="setTimeframe('48h')" id="btn-48h" class="active">48H</button>
+                <button onclick="setTimeframe('1w')" id="btn-1w">1W</button>
+                <button onclick="setTimeframe('1m')" id="btn-1m">1M</button>
+                <button onclick="setTimeframe('3m')" id="btn-3m">3M</button>
+                <button onclick="setTimeframe('6m')" id="btn-6m">6M</button>
+            </div>
+            <p style="font-size:0.8rem; color:#aaa; margin:0 0 4px 0;">High / Low Price Trend</p>
+            <div class="chart-container"><canvas id="priceChart"></canvas></div>
+            <p style="font-size:0.8rem; color:#aaa; margin:8px 0 4px 0;">Trade Volume</p>
+            <div class="chart-container"><canvas id="volumeChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Log Purchase Modal -->
+    <div id="logPurchaseModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: left;">
+            <span class="close" onclick="closeLogPurchaseModal()">&times;</span>
+            <h3 style="color: var(--accent-green); margin-top: 0; text-align: center;">Log New Purchase</h3>
+            <form id="logPurchaseForm" onsubmit="event.preventDefault(); submitLogPurchase();" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Select Item to Purchase</label>
+                    <div class="searchable-select-wrapper" id="searchableSelectWrapperBuy">
+                        <input type="text" id="gainsItemSearchInputBuy" class="searchable-select-input" placeholder="Type to search item..." autocomplete="off" oninput="filterGainsDropdown('buy')" onfocus="openGainsDropdown('buy')">
+                        <div id="gainsDropdownListBuy" class="searchable-dropdown-list"></div>
+                    </div>
+                    <input type="hidden" id="gainsSelectedItemIdBuy" value="">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Quantity Purchased</label>
+                    <input type="number" id="gainsQtyInputBuy" value="1" min="1" style="width: 100%; box-sizing: border-box;" required>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Buy Price (Each)</label>
+                    <input type="number" id="gainsBuyInputPrice" placeholder="0" style="width: 100%; box-sizing: border-box;" required>
+                </div>
+
+                <button type="submit" class="auth-action-btn" style="padding: 10px; font-size: 0.9rem; margin-top: 5px; text-align: center; width: 100%; background: var(--accent-green); border-color: var(--accent-green); color: #fff;">Save Purchase</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Quick Sale Modal -->
+    <div id="quickSaleModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: left;">
+            <span class="close" onclick="closeQuickSaleModal()">&times;</span>
+            <h3 style="color: var(--accent-orange); margin-top: 0; text-align: center;">Log Sale for Batch</h3>
+            <div id="quickSaleItemInfo" style="display: flex; align-items: center; gap: 10px; background: #161616; padding: 10px; border-radius: 6px; margin-bottom: 12px;">
+                <img id="quickSaleModalIcon" src="" width="32" height="32" alt="icon">
+                <div>
+                    <div id="quickSaleItemName" style="font-weight: bold; color: #fff;">Item Name</div>
+                    <div id="quickSaleItemDetails" style="font-size: 0.75rem; color: var(--text-muted);">Bought at: 0 gp | Remaining Qty: 0</div>
+                </div>
+            </div>
+            <form id="quickSaleForm" onsubmit="event.preventDefault(); submitQuickSale();" style="display: flex; flex-direction: column; gap: 10px;">
+                <input type="hidden" id="quickSaleEntryId">
+                <label style="font-size: 0.8rem; color: var(--text-muted);" for="quickSaleQtyInput">Quantity to Sell</label>
+                <input type="number" id="quickSaleQtyInput" min="1" style="width: 100%; box-sizing: border-box;" required>
+                
+                <label style="font-size: 0.8rem; color: var(--text-muted);" for="quickSalePriceInput">Sell Price (Each)</label>
+                <input type="number" id="quickSalePriceInput" min="0" style="width: 100%; box-sizing: border-box;" required>
+                
+                <button type="submit" class="auth-action-btn" style="padding: 10px; font-size: 0.9rem; margin-top: 5px; text-align: center; width: 100%; background: var(--accent-orange); border-color: var(--accent-orange); color: #fff;">Complete Sale</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: left;">
+            <span class="close" onclick="closeAuthModal()">&times;</span>
+            <h3 id="authModalTitle" style="color: var(--accent-orange); margin-top: 0; text-align: center;">Account Login</h3>
+            
+            <form id="authForm" onsubmit="event.preventDefault(); handleAuthSubmit();" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                <label style="font-size: 0.8rem; color: var(--text-muted);" for="authEmailInput">Email Address</label>
+                <input type="email" id="authEmailInput" autocomplete="email" placeholder="Enter your email" style="width: 100%;" required>
+                
+                <div id="passwordContainer">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);" for="authPasswordInput">Password</label>
+                    <input type="password" id="authPasswordInput" autocomplete="current-password" placeholder="Enter your password" oninput="checkPasswordStrength(this.value)" style="width: 100%;">
+                </div>
+                
+                <!-- Password Strength Checklist -->
+                <div id="passwordReqContainer" class="password-requirements">
+                    <div id="reqLength" class="req-item">❌ At least 8 characters</div>
+                    <div id="reqUpper" class="req-item">❌ One uppercase letter</div>
+                    <div id="reqNumber" class="req-item">❌ One number</div>
+                    <div id="reqSpecial" class="req-item">❌ One special character (!@#$%^&*)</div>
+                </div>
+
+                <div id="authMessageError" style="color: var(--neg-highlight); font-size: 0.75rem; min-height: 16px;"></div>
+
+                <button type="submit" class="auth-action-btn" id="authSubmitButton" style="padding: 10px; font-size: 0.9rem; margin-top: 5px; text-align: center; width: 100%;">Sign In</button>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 0.8rem;">
+                    <div>
+                        <span id="authTogglePrompt" style="color: var(--text-muted);">Don't have an account?</span> 
+                        <span id="authToggleLink" onclick="toggleAuthMode()" style="color: var(--accent-orange); cursor: pointer; font-weight: bold;">Register</span>
+                    </div>
+                    <span id="forgotPasswordLink" onclick="toggleForgotPasswordMode()" style="color: var(--accent-orange); cursor: pointer; font-weight: bold;">Forgot Password?</span>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Set New Password Modal -->
+    <div id="resetPasswordModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: left;">
+            <h3 style="color: var(--accent-orange); margin-top: 0; text-align: center;">Set New Password</h3>
+            <form id="updatePasswordForm" onsubmit="event.preventDefault(); handleNewPasswordSubmit();" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                <label style="font-size: 0.8rem; color: var(--text-muted);" for="newPasswordInput">New Password</label>
+                <input type="password" id="newPasswordInput" placeholder="Enter new password" style="width: 100%;" required>
+                <div id="updatePassError" style="color: var(--neg-highlight); font-size: 0.75rem; min-height: 16px;"></div>
+                <button type="submit" class="auth-action-btn" style="padding: 10px; font-size: 0.9rem; text-align: center; width: 100%;">Update Password</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://fiwkqhiqmijzovybvcfb.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_vXzzqegQXT7l3sF9geqqRQ_MDanTI9v";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const TURSO_URL = "https://osrsflips-soharuda.aws-us-east-2.turso.io/v2/pipeline";
+        const TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicm8iLCJnaWQiOiJjZjYxMWNiOC1iZGQ3LTQ3ZTUtOTgzMy0wOTczNmMxNzZlYWMiLCJpYXQiOjE3ODg2NDk2OTcsImtpZCI6InVjeGlNN2w2emt3bnFqaGZJM3dxbDZQZHZnU2Zub29IVWFZWVZPelA4cmsiLCJyaWQiOiI3YmEyMGE1Yy0yNmQ5LTRhNjQtYTY3ZC03NGEyMWMyNzYwMGUifQ.NZ5KHbj3iNJhJ7mVHa1lkCglb9EJV7K1BrBpZYcEYtpnG0z137jQw1EwJcvX1BL2lkNYWz2AjBKHr4P80zdfDQ";
+
+        const F2P_RECIPES = [
+            // Smithing: Bronze
+            {"id": 2349, "name": "Bronze bar", "type": "smithing_bronze", "level": 1, "ing": [[436, "Copper ore", 1], [438, "Tin ore", 1]]},
+            {"id": 1205, "name": "Bronze dagger", "type": "smithing_bronze", "level": 1, "ing": [[2349, "Bronze bar", 1]]},
+            {"id": 1351, "name": "Bronze axe", "type": "smithing_bronze", "level": 1, "ing": [[2349, "Bronze bar", 1]]},
+            {"id": 1422, "name": "Bronze mace", "type": "smithing_bronze", "level": 2, "ing": [[2349, "Bronze bar", 1]]},
+            {"id": 1139, "name": "Bronze med helm", "type": "smithing_bronze", "level": 3, "ing": [[2349, "Bronze bar", 1]]},
+            {"id": 1277, "name": "Bronze sword", "type": "smithing_bronze", "level": 4, "ing": [[2349, "Bronze bar", 1]]},
+            {"id": 1321, "name": "Bronze scimitar", "type": "smithing_bronze", "level": 5, "ing": [[2349, "Bronze bar", 2]]},
+            {"id": 1291, "name": "Bronze longsword", "type": "smithing_bronze", "level": 6, "ing": [[2349, "Bronze bar", 2]]},
+            {"id": 1155, "name": "Bronze full helm", "type": "smithing_bronze", "level": 7, "ing": [[2349, "Bronze bar", 2]]},
+            {"id": 1189, "name": "Bronze sq shield", "type": "smithing_bronze", "level": 8, "ing": [[2349, "Bronze bar", 2]]},
+            {"id": 1173, "name": "Bronze kiteshield", "type": "smithing_bronze", "level": 12, "ing": [[2349, "Bronze bar", 3]]},
+            {"id": 1307, "name": "Bronze 2h sword", "type": "smithing_bronze", "level": 14, "ing": [[2349, "Bronze bar", 3]]},
+            {"id": 1075, "name": "Bronze platelegs", "type": "smithing_bronze", "level": 16, "ing": [[2349, "Bronze bar", 3]]},
+            {"id": 1087, "name": "Bronze plateskirt", "type": "smithing_bronze", "level": 16, "ing": [[2349, "Bronze bar", 3]]},
+            {"id": 1117, "name": "Bronze platebody", "type": "smithing_bronze", "level": 18, "ing": [[2349, "Bronze bar", 5]]},
+            
+            // Smithing: Iron
+            {"id": 2351, "name": "Iron bar", "type": "smithing_iron", "level": 15, "ing": [[440, "Iron ore", 1]]},
+            {"id": 1203, "name": "Iron dagger", "type": "smithing_iron", "level": 15, "ing": [[2351, "Iron bar", 1]]},
+            {"id": 1349, "name": "Iron axe", "type": "smithing_iron", "level": 16, "ing": [[2351, "Iron bar", 1]]},
+            {"id": 1420, "name": "Iron mace", "type": "smithing_iron", "level": 17, "ing": [[2351, "Iron bar", 1]]},
+            {"id": 1137, "name": "Iron med helm", "type": "smithing_iron", "level": 18, "ing": [[2351, "Iron bar", 1]]},
+            {"id": 1279, "name": "Iron sword", "type": "smithing_iron", "level": 19, "ing": [[2351, "Iron bar", 1]]},
+            {"id": 1323, "name": "Iron scimitar", "type": "smithing_iron", "level": 20, "ing": [[2351, "Iron bar", 2]]},
+            {"id": 1293, "name": "Iron longsword", "type": "smithing_iron", "level": 21, "ing": [[2351, "Iron bar", 2]]},
+            {"id": 1153, "name": "Iron full helm", "type": "smithing_iron", "level": 22, "ing": [[2351, "Iron bar", 2]]},
+            {"id": 1191, "name": "Iron sq shield", "type": "smithing_iron", "level": 23, "ing": [[2351, "Iron bar", 2]]},
+            {"id": 1309, "name": "Iron 2h sword", "type": "smithing_iron", "level": 29, "ing": [[2351, "Iron bar", 3]]},
+            {"id": 1193, "name": "Iron kiteshield", "type": "smithing_iron", "level": 27, "ing": [[2351, "Iron bar", 3]]},
+            {"id": 1067, "name": "Iron platelegs", "type": "smithing_iron", "level": 31, "ing": [[2351, "Iron bar", 3]]},
+            {"id": 1081, "name": "Iron plateskirt", "type": "smithing_iron", "level": 31, "ing": [[2351, "Iron bar", 3]]},
+            {"id": 1115, "name": "Iron platebody", "type": "smithing_iron", "level": 33, "ing": [[2351, "Iron bar", 5]]},
+
+            // Smithing: Steel
+            {"id": 2353, "name": "Steel bar", "type": "smithing_steel", "level": 30, "ing": [[440, "Iron ore", 1], [453, "Coal", 2]]},
+            {"id": 1207, "name": "Steel dagger", "type": "smithing_steel", "level": 30, "ing": [[2353, "Steel bar", 1]]},
+            {"id": 1353, "name": "Steel axe", "type": "smithing_steel", "level": 31, "ing": [[2353, "Steel bar", 1]]},
+            {"id": 1424, "name": "Steel mace", "type": "smithing_steel", "level": 32, "ing": [[2353, "Steel bar", 1]]},
+            {"id": 1141, "name": "Steel med helm", "type": "smithing_steel", "level": 33, "ing": [[2353, "Steel bar", 1]]},
+            {"id": 1281, "name": "Steel sword", "type": "smithing_steel", "level": 34, "ing": [[2353, "Steel bar", 1]]},
+            {"id": 1539, "name": "Steel nails", "type": "smithing_steel", "level": 34, "yield_amount": 15, "ing": [[2353, "Steel bar", 1]]},
+            {"id": 1325, "name": "Steel scimitar", "type": "smithing_steel", "level": 35, "ing": [[2353, "Steel bar", 2]]},
+            {"id": 1295, "name": "Steel longsword", "type": "smithing_steel", "level": 36, "ing": [[2353, "Steel bar", 2]]},
+            {"id": 1157, "name": "Steel full helm", "type": "smithing_steel", "level": 37, "ing": [[2353, "Steel bar", 2]]},
+            {"id": 1195, "name": "Steel sq shield", "type": "smithing_steel", "level": 38, "ing": [[2353, "Steel bar", 2]]},
+            {"id": 1175, "name": "Steel kiteshield", "type": "smithing_steel", "level": 42, "ing": [[2353, "Steel bar", 3]]},
+            {"id": 1311, "name": "Steel 2h sword", "type": "smithing_steel", "level": 44, "ing": [[2353, "Steel bar", 3]]},
+            {"id": 1069, "name": "Steel platelegs", "type": "smithing_steel", "level": 46, "ing": [[2353, "Steel bar", 3]]},
+            {"id": 1083, "name": "Steel plateskirt", "type": "smithing_steel", "level": 46, "ing": [[2353, "Steel bar", 3]]},
+            {"id": 1119, "name": "Steel platebody", "type": "smithing_steel", "level": 48, "ing": [[2353, "Steel bar", 5]]},
+
+            // Smithing: Mithril
+            {"id": 2359, "name": "Mithril bar", "type": "smithing_mithril", "level": 50, "ing": [[447, "Mithril ore", 1], [453, "Coal", 4]]},
+            {"id": 1209, "name": "Mithril dagger", "type": "smithing_mithril", "level": 50, "ing": [[2359, "Mithril bar", 1]]},
+            {"id": 1355, "name": "Mithril axe", "type": "smithing_mithril", "level": 51, "ing": [[2359, "Mithril bar", 1]]},
+            {"id": 1428, "name": "Mithril mace", "type": "smithing_mithril", "level": 52, "ing": [[2359, "Mithril bar", 1]]},
+            {"id": 1143, "name": "Mithril med helm", "type": "smithing_mithril", "level": 53, "ing": [[2359, "Mithril bar", 1]]},
+            {"id": 1285, "name": "Mithril sword", "type": "smithing_mithril", "level": 54, "ing": [[2359, "Mithril bar", 1]]},
+            {"id": 1329, "name": "Mithril scimitar", "type": "smithing_mithril", "level": 55, "ing": [[2359, "Mithril bar", 2]]},
+            {"id": 1297, "name": "Mithril longsword", "type": "smithing_mithril", "level": 56, "ing": [[2359, "Mithril bar", 2]]},
+            {"id": 1159, "name": "Mithril full helm", "type": "smithing_mithril", "level": 57, "ing": [[2359, "Mithril bar", 2]]},
+            {"id": 1197, "name": "Mithril sq shield", "type": "smithing_mithril", "level": 58, "ing": [[2359, "Mithril bar", 2]]},
+            {"id": 1181, "name": "Mithril kiteshield", "type": "smithing_mithril", "level": 62, "ing": [[2359, "Mithril bar", 3]]},
+            {"id": 1313, "name": "Mithril 2h sword", "type": "smithing_mithril", "level": 64, "ing": [[2359, "Mithril bar", 3]]},
+            {"id": 1071, "name": "Mithril platelegs", "type": "smithing_mithril", "level": 66, "ing": [[2359, "Mithril bar", 3]]},
+            {"id": 1085, "name": "Mithril plateskirt", "type": "smithing_mithril", "level": 66, "ing": [[2359, "Mithril bar", 3]]},
+            {"id": 1121, "name": "Mithril platebody", "type": "smithing_mithril", "level": 68, "ing": [[2359, "Mithril bar", 5]]},
+
+            // Smithing: Adamant
+            {"id": 2361, "name": "Adamantite bar", "type": "smithing_adamant", "level": 70, "ing": [[449, "Adamantite ore", 1], [453, "Coal", 6]]},
+            {"id": 1213, "name": "Adamant dagger", "type": "smithing_adamant", "level": 70, "ing": [[2361, "Adamantite bar", 1]]},
+            {"id": 1357, "name": "Adamant axe", "type": "smithing_adamant", "level": 71, "ing": [[2361, "Adamantite bar", 1]]},
+            {"id": 1430, "name": "Adamant mace", "type": "smithing_adamant", "level": 72, "ing": [[2361, "Adamantite bar", 1]]},
+            {"id": 1145, "name": "Adamant med helm", "type": "smithing_adamant", "level": 73, "ing": [[2361, "Adamantite bar", 1]]},
+            {"id": 1287, "name": "Adamant sword", "type": "smithing_adamant", "level": 74, "ing": [[2361, "Adamantite bar", 1]]},
+            {"id": 1331, "name": "Adamant scimitar", "type": "smithing_adamant", "level": 75, "ing": [[2361, "Adamantite bar", 2]]},
+            {"id": 1299, "name": "Adamant longsword", "type": "smithing_adamant", "level": 76, "ing": [[2361, "Adamantite bar", 2]]},
+            {"id": 1161, "name": "Adamant full helm", "type": "smithing_adamant", "level": 77, "ing": [[2361, "Adamantite bar", 2]]},
+            {"id": 1199, "name": "Adamant sq shield", "type": "smithing_adamant", "level": 78, "ing": [[2361, "Adamantite bar", 2]]},
+            {"id": 1183, "name": "Adamant kiteshield", "type": "smithing_adamant", "level": 82, "ing": [[2361, "Adamantite bar", 3]]},
+            {"id": 1315, "name": "Adamant 2h sword", "type": "smithing_adamant", "level": 84, "ing": [[2361, "Adamantite bar", 3]]},
+            {"id": 1073, "name": "Adamant platelegs", "type": "smithing_adamant", "level": 86, "ing": [[2361, "Adamantite bar", 3]]},
+            {"id": 1091, "name": "Adamant plateskirt", "type": "smithing_adamant", "level": 86, "ing": [[2361, "Adamantite bar", 3]]},
+            {"id": 1123, "name": "Adamant platebody", "type": "smithing_adamant", "level": 88, "ing": [[2361, "Adamantite bar", 5]]},
+
+            // Smithing: Runite
+            {"id": 2363, "name": "Runite bar", "type": "smithing_runite", "level": 85, "ing": [[451, "Runite ore", 1], [453, "Coal", 8]]},
+            {"id": 1215, "name": "Rune dagger", "type": "smithing_runite", "level": 85, "ing": [[2363, "Runite bar", 1]]},
+            {"id": 1359, "name": "Rune axe", "type": "smithing_runite", "level": 86, "ing": [[2363, "Runite bar", 1]]},
+            {"id": 1432, "name": "Rune mace", "type": "smithing_runite", "level": 87, "ing": [[2363, "Runite bar", 1]]},
+            {"id": 1147, "name": "Rune med helm", "type": "smithing_runite", "level": 88, "ing": [[2363, "Runite bar", 1]]},
+            {"id": 1289, "name": "Rune sword", "type": "smithing_runite", "level": 89, "ing": [[2363, "Runite bar", 1]]},
+            {"id": 1333, "name": "Rune scimitar", "type": "smithing_runite", "level": 90, "ing": [[2363, "Runite bar", 2]]},
+            {"id": 1301, "name": "Rune longsword", "type": "smithing_runite", "level": 91, "ing": [[2363, "Runite bar", 2]]},
+            {"id": 1163, "name": "Rune full helm", "type": "smithing_runite", "level": 92, "ing": [[2363, "Runite bar", 2]]},
+            {"id": 1201, "name": "Rune sq shield", "type": "smithing_runite", "level": 93, "ing": [[2363, "Runite bar", 2]]},
+            {"id": 1185, "name": "Rune kiteshield", "type": "smithing_runite", "level": 97, "ing": [[2363, "Runite bar", 3]]},
+            {"id": 1317, "name": "Rune 2h sword", "type": "smithing_runite", "level": 99, "ing": [[2363, "Runite bar", 3]]},
+            {"id": 1079, "name": "Rune platelegs", "type": "smithing_runite", "level": 99, "ing": [[2363, "Runite bar", 3]]},
+            {"id": 1093, "name": "Rune plateskirt", "type": "smithing_runite", "level": 99, "ing": [[2363, "Runite bar", 3]]},
+            {"id": 1127, "name": "Rune platebody", "type": "smithing_runite", "level": 99, "ing": [[2363, "Runite bar", 5]]},
+
+            // Crafting: Jewelry & Gems
+            {"id": 1607, "name": "Sapphire", "type": "crafting_jewelry", "level": 20, "ing": [[1623, "Uncut sapphire", 1]]},
+            {"id": 1605, "name": "Emerald", "type": "crafting_jewelry", "level": 27, "ing": [[1621, "Uncut emerald", 1]]},
+            {"id": 1603, "name": "Ruby", "type": "crafting_jewelry", "level": 34, "ing": [[1619, "Uncut ruby", 1]]},
+            {"id": 1601, "name": "Diamond", "type": "crafting_jewelry", "level": 43, "ing": [[1617, "Uncut diamond", 1]]},
+            {"id": 1635, "name": "Gold ring", "type": "crafting_jewelry", "level": 5, "ing": [[2357, "Gold bar", 1]]},
+            {"id": 1637, "name": "Sapphire ring", "type": "crafting_jewelry", "level": 20, "ing": [[2357, "Gold bar", 1], [1607, "Sapphire", 1]]},
+            {"id": 1639, "name": "Emerald ring", "type": "crafting_jewelry", "level": 27, "ing": [[2357, "Gold bar", 1], [1605, "Emerald", 1]]},
+            {"id": 1641, "name": "Ruby ring", "type": "crafting_jewelry", "level": 34, "ing": [[2357, "Gold bar", 1], [1603, "Ruby", 1]]},
+            {"id": 1643, "name": "Diamond ring", "type": "crafting_jewelry", "level": 43, "ing": [[2357, "Gold bar", 1], [1601, "Diamond", 1]]},
+            {"id": 1654, "name": "Gold necklace", "type": "crafting_jewelry", "level": 6, "ing": [[2357, "Gold bar", 1]]},
+            {"id": 1656, "name": "Sapphire necklace", "type": "crafting_jewelry", "level": 22, "ing": [[2357, "Gold bar", 1], [1607, "Sapphire", 1]]},
+            {"id": 1658, "name": "Emerald necklace", "type": "crafting_jewelry", "level": 29, "ing": [[2357, "Gold bar", 1], [1605, "Emerald", 1]]},
+            {"id": 1660, "name": "Ruby necklace", "type": "crafting_jewelry", "level": 40, "ing": [[2357, "Gold bar", 1], [1603, "Ruby", 1]]},
+            {"id": 1662, "name": "Diamond necklace", "type": "crafting_jewelry", "level": 56, "ing": [[2357, "Gold bar", 1], [1601, "Diamond", 1]]},
+            {"id": 1673, "name": "Gold amulet (u)", "type": "crafting_jewelry", "level": 8, "ing": [[2357, "Gold bar", 1]]},
+            {"id": 1675, "name": "Sapphire amulet (u)", "type": "crafting_jewelry", "level": 24, "ing": [[2357, "Gold bar", 1], [1607, "Sapphire", 1]]},
+            {"id": 1677, "name": "Emerald amulet (u)", "type": "crafting_jewelry", "level": 31, "ing": [[2357, "Gold bar", 1], [1605, "Emerald", 1]]},
+            {"id": 1679, "name": "Ruby amulet (u)", "type": "crafting_jewelry", "level": 50, "ing": [[2357, "Gold bar", 1], [1603, "Ruby", 1]]},
+            {"id": 1681, "name": "Diamond amulet (u)", "type": "crafting_jewelry", "level": 70, "ing": [[2357, "Gold bar", 1], [1601, "Diamond", 1]]},
+            {"id": 5523, "name": "Tiara", "type": "crafting_jewelry", "level": 23, "ing": [[2355, "Silver bar", 1]]},
+            {"id": 1718, "name": "Unstrung holy symbol", "type": "crafting_jewelry", "level": 16, "ing": [[2355, "Silver bar", 1]]},
+
+            // Crafting: Leather
+            {"id": 1059, "name": "Leather gloves", "type": "crafting_leather", "level": 1, "ing": [[1741, "Leather", 1]]},
+            {"id": 1061, "name": "Leather boots", "type": "crafting_leather", "level": 7, "ing": [[1741, "Leather", 1]]},
+            {"id": 1167, "name": "Leather cowl", "type": "crafting_leather", "level": 9, "ing": [[1741, "Leather", 1]]},
+            {"id": 1063, "name": "Leather vambraces", "type": "crafting_leather", "level": 11, "ing": [[1741, "Leather", 1]]},
+            {"id": 1129, "name": "Leather body", "type": "crafting_leather", "level": 14, "ing": [[1741, "Leather", 1]]},
+            {"id": 1095, "name": "Leather chaps", "type": "crafting_leather", "level": 18, "ing": [[1741, "Leather", 1]]},
+            {"id": 1131, "name": "Hardleather body", "type": "crafting_leather", "level": 28, "ing": [[1743, "Hard leather", 1]]},
+
+            // Cooking
+            {"id": 315, "name": "Shrimps", "type": "cooking", "level": 1, "ing": [[317, "Raw shrimps", 1]]},
+            {"id": 319, "name": "Anchovies", "type": "cooking", "level": 1, "ing": [[321, "Raw anchovies", 1]]},
+            {"id": 329, "name": "Salmon", "type": "cooking", "level": 25, "ing": [[331, "Raw salmon", 1]]},
+            {"id": 361, "name": "Tuna", "type": "cooking", "level": 30, "ing": [[359, "Raw tuna", 1]]},
+            {"id": 379, "name": "Lobster", "type": "cooking", "level": 40, "ing": [[377, "Raw lobster", 1]]},
+            {"id": 373, "name": "Swordfish", "type": "cooking", "level": 50, "ing": [[371, "Raw swordfish", 1]]},
+            {"id": 333, "name": "Trout", "type": "cooking", "level": 15, "ing": [[335, "Raw trout", 1]]},
+            {"id": 339, "name": "Cod", "type": "cooking", "level": 18, "ing": [[341, "Raw cod", 1]]},
+            {"id": 351, "name": "Pike", "type": "cooking", "level": 20, "ing": [[349, "Raw pike", 1]]},
+            {"id": 2142, "name": "Cooked meat", "type": "cooking", "level": 1, "ing": [[2146, "Raw meat", 1]]},
+            {"id": 2871, "name": "Pie shell", "type": "cooking", "level": 10, "ing": [[1953, "Pastry dough", 1], [2313, "Pie dish", 1]]},
+            {"id": 2323, "name": "Uncooked berry pie", "type": "cooking", "level": 10, "ing": [[2871, "Pie shell", 1], [1951, "Redberries", 1]]},
+            {"id": 2327, "name": "Uncooked meat pie", "type": "cooking", "level": 20, "ing": [[2871, "Pie shell", 1], [2142, "Cooked meat", 1]]},
+            {"id": 2317, "name": "Uncooked apple pie", "type": "cooking", "level": 30, "ing": [[2871, "Pie shell", 1], [1955, "Cooking apple", 1]]},
+            {"id": 1993, "name": "Jug of wine", "type": "cooking", "level": 35, "ing": [[1987, "Grapes", 1], [1937, "Jug of water", 1]]},
+            {"id": 2289, "name": "Plain pizza", "type": "cooking", "level": 35, "ing": [[2283, "Pizza base", 1], [1982, "Tomato", 1], [1985, "Cheese", 1]]},
+            {"id": 2293, "name": "Meat pizza", "type": "cooking", "level": 45, "ing": [[2289, "Plain pizza", 1], [2142, "Cooked meat", 1]]},
+            {"id": 2297, "name": "Anchovy pizza", "type": "cooking", "level": 55, "ing": [[2289, "Plain pizza", 1], [319, "Anchovies", 1]]},
+            {"id": 2011, "name": "Uncooked stew", "type": "cooking", "level": 25, "ing": [[1923, "Bowl of water", 1], [2146, "Meat", 1], [1942, "Potato", 1]]},
+            {"id": 2108, "name": "Cake", "type": "cooking", "level": 40, "ing": [[1933, "Pot of flour", 1], [1927, "Bucket of milk", 1], [1940, "Egg", 1]]},
+
+            // Runecrafting
+            {"id": 556, "name": "Air rune", "type": "runecrafting", "level": 1, "ing": [[1436, "Rune essence", 1]]},
+            {"id": 558, "name": "Mind rune", "type": "runecrafting", "level": 2, "ing": [[1436, "Rune essence", 1]]},
+            {"id": 555, "name": "Water rune", "type": "runecrafting", "level": 5, "ing": [[1436, "Rune essence", 1]]},
+            {"id": 557, "name": "Earth rune", "type": "runecrafting", "level": 9, "ing": [[1436, "Rune essence", 1]]},
+            {"id": 554, "name": "Fire rune", "type": "runecrafting", "level": 14, "ing": [[1436, "Rune essence", 1]]},
+            {"id": 559, "name": "Body rune", "type": "runecrafting", "level": 20, "ing": [[1436, "Rune essence", 1]]}
+        ];
+
+        let cachedItemsMap = {};
+        let cachedRecipes = null;
+        let itemHistories = {};
+        let wikiMapping = {};
+
+        let priceChartObj = null;
+        let volumeChartObj = null;
+        let gainsChartObj = null;
+        let homeMiniChartObj = null;
+        let currentItemId = null;
+        
+        let currentView = "home";
+        let currentProductionCategory = "smithing";
+        let currentSubFilter = "all";
+        let sortField = "volume";
+        let sortAsc = false;
+
+        let currentPage = 1;
+        let pageSize = 25;
+
+        let currentViewMode = localStorage.getItem('osrs_f2p_view') || 'grid';
+        let homeDataCache = null;
+        let activeModalItem = null;
+        let currentUser = null;
+        let isRegisterMode = false;
+        let isForgotPasswordMode = false;
+
+        let userFavorites = [];
+        let userProfile = { username: "", avatar: "" };
+        let userPurchasesHistory = [];
+        let userSalesHistory = [];
+
+        const safeInt = (val) => {
+            const parsed = parseInt(val);
+            return isNaN(parsed) ? 0 : parsed;
+        };
+
+        function getRunecraftYield(runeType, level) {
+            const rules = {
+                'air':   { base: 1,  interval: 11 },
+                'mind':  { base: 2,  interval: 14 },
+                'water': { base: 5,  interval: 14 },
+                'earth': { base: 9,  interval: 14 },
+                'fire':  { base: 14, interval: 14 },
+                'body':  { base: 20, interval: 14 }
+            };
+            let rule = rules[runeType];
+            if (!rule) return 1;
+            if (level < rule.base) return 1;
+            return 1 + Math.floor((level - rule.base) / rule.interval);
+        }
+
+        async function initAuth() {
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session && session.user) {
+                    currentUser = session.user;
+                    await loadUserDataFromSupabase();
+                    updateAuthUI();
+                }
+                supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                    currentUser = session ? session.user : null;
+                    if (currentUser) {
+                        await loadUserDataFromSupabase();
+                    } else {
+                        userFavorites = [];
+                        userProfile = { username: "", avatar: "" };
+                        userPurchasesHistory = [];
+                        userSalesHistory = [];
+                        window.flattenedTransactions = [];
+                    }
+                    updateAuthUI();
+
+                    if (event === "PASSWORD_RECOVERY") {
+                        document.getElementById('resetPasswordModal').style.display = 'block';
+                    }
+                });
+            } catch (err) {
+                console.error("Auth init error:", err);
+            }
+        }
+
+        async function loadUserDataFromSupabase() {
+            if (!currentUser) return;
+            try {
+                const { data, error } = await supabaseClient
+                    .from('user_profiles')
+                    .select('favorites, profile, gains, purchases, sales')
+                    .eq('id', currentUser.id)
+                    .single();
+
+                if (data) {
+                    userFavorites = data.favorites || [];
+                    userProfile = data.profile || { username: "", avatar: "" };
+                    userSalesHistory = data.sales || [];
+                    userPurchasesHistory = data.purchases || data.gains || [];
+
+                    let expandedSales = [];
+                    userPurchasesHistory.forEach(p => {
+                        if (p.salesLog && p.salesLog.length > 0) {
+                            p.salesLog.forEach(s => {
+                                expandedSales.push({
+                                    id: s.id || (p.id + Math.random()),
+                                    itemId: p.itemId,
+                                    name: p.name,
+                                    icon: p.icon,
+                                    quantity: s.quantity,
+                                    buyPrice: p.buyPrice,
+                                    sellPrice: s.sellPrice,
+                                    profit: s.profit,
+                                    totalCost: s.totalCost || (s.quantity * s.buyPrice),
+                                    date: s.date || p.date,
+                                    type: 'sale'
+                                });
+                            });
+                        }
+                        if (p.remainingQuantity > 0) {
+                            expandedSales.push({
+                                id: p.id,
+                                itemId: p.itemId,
+                                name: p.name,
+                                icon: p.icon,
+                                quantity: p.remainingQuantity,
+                                buyPrice: p.buyPrice,
+                                totalCost: p.remainingQuantity * p.buyPrice,
+                                date: p.date,
+                                type: 'active_purchase'
+                            });
+                        }
+                    });
+
+                    userSalesHistory.forEach(s => {
+                        if (!expandedSales.some(e => e.id === s.id)) {
+                            expandedSales.push({
+                                ...s,
+                                totalCost: s.totalCost || ((s.quantity || 0) * (s.buyPrice || 0)),
+                                type: 'sale'
+                            });
+                        }
+                    });
+
+                    window.flattenedTransactions = expandedSales;
+
+                } else if (error && error.code === 'PGRST116') {
+                    await saveUserDataToSupabase();
+                }
+            } catch (err) {
+                console.error("Error loading user data from Supabase:", err);
+            }
+        }
+
+        async function saveUserDataToSupabase() {
+            if (!currentUser) return;
+            try {
+                await supabaseClient
+                    .from('user_profiles')
+                    .upsert({
+                        id: currentUser.id,
+                        favorites: userFavorites,
+                        profile: userProfile,
+                        purchases: userPurchasesHistory,
+                        sales: userSalesHistory,
+                        updated_at: new Date()
+                    });
+            } catch (err) {
+                console.error("Error saving user data to Supabase:", err);
+            }
+        }
+
+        async function handleNewPasswordSubmit() {
+            const password = document.getElementById('newPasswordInput').value;
+            const errorEl = document.getElementById('updatePassError');
+            errorEl.innerText = "";
+
+            if (!password || password.length < 8) {
+                errorEl.innerText = "Password must be at least 8 characters.";
+                return;
+            }
+
+            const { error } = await supabaseClient.auth.updateUser({ password });
+            if (error) {
+                errorEl.innerText = error.message;
+            } else {
+                alert("Password updated successfully!");
+                document.getElementById('resetPasswordModal').style.display = 'none';
+                window.location.href = window.location.pathname;
+            }
+        }
+
+        async function updateAuthUI() {
+            const actionBtn = document.getElementById('authActionButton');
+            const profilePill = document.getElementById('headerAuthProfile');
+            const avatarImg = document.getElementById('headerAvatarImg');
+            const usernameLabel = document.getElementById('headerUsernameLabel');
+            const navFavoritesBtn = document.getElementById('navFavoritesBtn');
+            const navGainsBtn = document.getElementById('navGainsBtn');
+
+            if (currentUser) {
+                let displayTitle = userProfile.username || currentUser.email.split('@')[0];
+                let avatarUrl = userProfile.avatar || "https://oldschool.runescape.wiki/images/Placeholder.png";
+
+                actionBtn.style.display = 'none';
+                profilePill.style.display = 'flex';
+                avatarImg.src = avatarUrl;
+                usernameLabel.innerText = displayTitle;
+
+                navFavoritesBtn.classList.remove('hidden-nav');
+                navGainsBtn.classList.remove('hidden-nav');
+
+                document.getElementById('accountViewEmail').innerText = currentUser.email;
+                document.getElementById('accountUsernameInput').value = userProfile.username || "";
+                document.getElementById('accountAvatarInput').value = userProfile.avatar || "";
+                document.getElementById('accountViewAvatar').src = avatarUrl;
+
+                if (Object.keys(cachedItemsMap).length > 0) {
+                    renderHomeFavoritesSection(cachedItemsMap);
+                }
+                await updateHomeHeaderStats();
+            } else {
+                actionBtn.style.display = 'block';
+                profilePill.style.display = 'none';
+                closeUserDropdown();
+
+                navFavoritesBtn.classList.add('hidden-nav');
+                navGainsBtn.classList.add('hidden-nav');
+
+                document.getElementById('homeFavoritesSection').style.display = 'none';
+                await updateHomeHeaderStats();
+
+                if (currentView === 'account' || currentView === 'favorites' || currentView === 'gains') {
+                    switchView('home');
+                }
+            }
+        }
+
+        function toggleUserDropdown(event) {
+            if (event) event.stopPropagation();
+            const menu = document.getElementById('userDropdownMenu');
+            menu.classList.toggle('open');
+        }
+
+        function closeUserDropdown() {
+            document.getElementById('userDropdownMenu').classList.remove('open');
+        }
+
+        async function saveAccountSettings() {
+            const newUsername = document.getElementById('accountUsernameInput').value.trim();
+            const newAvatar = document.getElementById('accountAvatarInput').value.trim();
+            const saveBtn = document.getElementById('saveAccountBtn');
+
+            userProfile.username = newUsername;
+            userProfile.avatar = newAvatar;
+            await saveUserDataToSupabase();
+
+            updateAuthUI();
+
+            let originalText = saveBtn.innerText;
+            saveBtn.innerText = "Saved!";
+            saveBtn.style.backgroundColor = "var(--accent-green)";
+            saveBtn.style.color = "#fff";
+
+            setTimeout(() => {
+                saveBtn.innerText = originalText;
+                saveBtn.style.backgroundColor = "";
+                saveBtn.style.color = "";
+            }, 2000);
+        }
+
+        async function toggleFavorite(itemId, event) {
+            if (event) event.stopPropagation();
+            itemId = safeInt(itemId);
+            let idx = userFavorites.indexOf(itemId);
+            if (idx > -1) {
+                userFavorites.splice(idx, 1);
+            } else {
+                userFavorites.push(itemId);
+            }
+            await saveUserDataToSupabase();
+
+            if (currentView === 'favorites') {
+                loadMarketData().then(itemsMap => renderFavoritesView(itemsMap));
+            } else {
+                filterAndSortData();
+                if (currentView === 'home' && homeDataCache) {
+                    renderHomeView(homeDataCache);
+                    renderHomeFavoritesSection(cachedItemsMap);
+                }
+            }
+        }
+
+        function openLogPurchaseModal() {
+            document.getElementById('gainsItemSearchInputBuy').value = "";
+            document.getElementById('gainsSelectedItemIdBuy').value = "";
+            document.getElementById('gainsQtyInputBuy').value = "1";
+            document.getElementById('gainsBuyInputPrice').value = "";
+            document.getElementById('logPurchaseModal').style.display = 'block';
+        }
+
+        function closeLogPurchaseModal() {
+            document.getElementById('logPurchaseModal').style.display = 'none';
+        }
+
+        async function submitLogPurchase() {
+            const itemId = safeInt(document.getElementById('gainsSelectedItemIdBuy').value);
+            const qtyEl = document.getElementById('gainsQtyInputBuy');
+            const priceEl = document.getElementById('gainsBuyInputPrice');
+
+            let qty = Math.max(1, safeInt(qtyEl.value));
+            let buyPrice = safeInt(priceEl.value);
+
+            let item = cachedItemsMap[itemId];
+            if (!item) {
+                alert("Please select a valid item from the purchase dropdown search results.");
+                return;
+            }
+
+            let entry = {
+                id: Date.now(),
+                itemId: item.id,
+                name: item.name,
+                icon: item.icon,
+                initialQuantity: qty,
+                remainingQuantity: qty,
+                buyPrice: buyPrice,
+                totalCost: buyPrice * qty,
+                salesLog: [],
+                date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            userPurchasesHistory.unshift(entry);
+            await saveUserDataToSupabase();
+            await loadUserDataFromSupabase();
+            closeLogPurchaseModal();
+            renderGainsView();
+            await updateHomeHeaderStats();
+        }
+
+        function openQuickSaleModal(entryId) {
+            let purchase = userPurchasesHistory.find(p => p.id === entryId);
+            if (!purchase) return;
+
+            document.getElementById('quickSaleEntryId').value = purchase.id;
+            document.getElementById('quickSaleModalIcon').src = purchase.icon;
+            document.getElementById('quickSaleItemName').innerText = purchase.name;
+            document.getElementById('quickSaleItemDetails').innerText = `Bought at: ${purchase.buyPrice.toLocaleString()} gp (Ea) | Remaining Qty: ${purchase.remainingQuantity.toLocaleString()}`;
+            
+            document.getElementById('quickSaleQtyInput').value = purchase.remainingQuantity;
+            document.getElementById('quickSaleQtyInput').max = purchase.remainingQuantity;
+            
+            let itemMeta = cachedItemsMap[purchase.itemId];
+            document.getElementById('quickSalePriceInput').value = itemMeta ? itemMeta.sell : purchase.buyPrice;
+
+            document.getElementById('quickSaleModal').style.display = 'block';
+        }
+
+        function closeQuickSaleModal() {
+            document.getElementById('quickSaleModal').style.display = 'none';
+        }
+
         async function submitQuickSale() {
             const entryId = safeInt(document.getElementById('quickSaleEntryId').value);
             const qty = Math.max(1, safeInt(document.getElementById('quickSaleQtyInput').value));
@@ -52,3 +1207,1271 @@
             renderGainsView();
             await updateHomeHeaderStats();
         }
+
+        async function deleteTransactionEntry(id, isSale) {
+            if (isSale) {
+                userSalesHistory = userSalesHistory.filter(s => s.id !== id);
+                userPurchasesHistory.forEach(p => {
+                    if (p.salesLog) {
+                        let targetSale = p.salesLog.find(s => s.id === id);
+                        if (targetSale) {
+                            p.remainingQuantity += targetSale.quantity;
+                        }
+                        p.salesLog = p.salesLog.filter(s => s.id !== id);
+                    }
+                });
+            } else {
+                userPurchasesHistory = userPurchasesHistory.filter(p => p.id !== id);
+            }
+            await saveUserDataToSupabase();
+            await loadUserDataFromSupabase();
+            renderGainsView();
+            await updateHomeHeaderStats();
+        }
+
+        async function clearGainsHistory() {
+            if (confirm("Are you sure you want to clear all tracked purchases and sales history?")) {
+                userPurchasesHistory = [];
+                userSalesHistory = [];
+                window.flattenedTransactions = [];
+                await saveUserDataToSupabase();
+                renderGainsView();
+                await updateHomeHeaderStats();
+            }
+        }
+
+        async function updateHomeHeaderStats() {
+            const totalProfitEl = document.getElementById('homeTotalProfitDisplay');
+            if (Object.keys(cachedItemsMap).length === 0) {
+                await loadMarketData();
+            }
+            
+            let totalRealizedProfit = userSalesHistory.reduce((sum, entry) => sum + (entry.profit || 0), 0);
+            let totalInvestedCapital = userPurchasesHistory.reduce((sum, entry) => sum + ((entry.remainingQuantity || 0) * (entry.buyPrice || 0)), 0);
+            let netPosition = totalRealizedProfit - totalInvestedCapital;
+
+            if (totalProfitEl) {
+                totalProfitEl.innerText = (netPosition >= 0 ? "+" : "") + netPosition.toLocaleString() + " gp";
+                totalProfitEl.className = netPosition >= 0 ? "highlight" : "neg-highlight";
+            }
+            renderHomeMiniChart();
+        }
+
+        function renderHomeMiniChart() {
+            const ctx = document.getElementById('homeMiniPerformanceChart');
+            if (!ctx) return;
+            if (homeMiniChartObj) homeMiniChartObj.destroy();
+
+            let combinedEvents = [
+                ...userPurchasesHistory.map(p => ({ time: p.id || 0, val: -((p.initialQuantity || p.quantity || 0) * (p.buyPrice || 0)) })),
+                ...userSalesHistory.map(s => ({ time: s.id || 0, val: s.profit || 0 }))
+            ].sort((a, b) => a.time - b.time);
+
+            let labels = [];
+            let cumulativeData = [];
+            let runningSum = 0;
+
+            if (combinedEvents.length === 0) {
+                labels = ["Start"];
+                cumulativeData = [0];
+            } else {
+                combinedEvents.forEach((event, idx) => {
+                    runningSum += event.val;
+                    labels.push(`#${idx + 1}`);
+                    cumulativeData.push(runningSum);
+                });
+            }
+
+            homeMiniChartObj = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: cumulativeData,
+                        borderColor: '#FF5252',
+                        backgroundColor: 'rgba(255, 82, 82, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        pointRadius: 0,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
+        }
+
+        function renderHomeFavoritesSection(itemsMap) {
+            const section = document.getElementById('homeFavoritesSection');
+            const container = document.getElementById('homeFavoritesContainer');
+            if (!currentUser || userFavorites.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            let favItems = userFavorites.map(id => itemsMap[id]).filter(item => item !== undefined);
+            if (favItems.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            favItems.sort((a, b) => b.margin - a.margin);
+            let topTwo = favItems.slice(0, 2);
+
+            container.innerHTML = "";
+            topTwo.forEach(item => {
+                let div = document.createElement('div');
+                div.className = "card";
+                div.onclick = () => openGraph(item);
+
+                div.innerHTML = `
+                    <div class="card-header">
+                        <button class="fav-star-btn active" onclick="toggleFavorite(${item.id}, event)">★</button>
+                        <img src="${item.icon}" loading="lazy" alt="icon">
+                        <div class="card-title">${item.name}</div>
+                    </div>
+                    <div style="width: 100%;">
+                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${item.buy.toLocaleString()} / ${item.sell.toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Margin:</span><span class="${item.margin > 0 ? 'highlight' : 'neg-highlight'}">+${item.margin.toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${item.volume.toLocaleString()} / ${item.limit.toLocaleString()}</span></div>
+                        <div class="card-badges">
+                            <span class="badge ${item.trendClass}">${item.trendIcon} ${item.trend}</span>
+                            <span class="badge ${item.dataRatingClass}">Data: ${item.dataRatingText}</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            section.style.display = 'block';
+        }
+
+        function renderGainsView() {
+            const gridContainer = document.getElementById('gainsCardGrid');
+            const totalProfitEl = document.getElementById('gainsTotalProfit');
+            const totalPurchasesEl = document.getElementById('gainsTotalPurchasesCount');
+            const filterVal = document.getElementById('gainsFilterSelect').value;
+
+            let totalProfit = userSalesHistory.reduce((sum, entry) => sum + (entry.profit || 0), 0);
+            totalProfitEl.innerText = (totalProfit >= 0 ? "+" : "") + totalProfit.toLocaleString() + " gp";
+            totalProfitEl.className = totalProfit >= 0 ? "highlight" : "neg-highlight";
+
+            let activeCount = userPurchasesHistory.filter(p => (p.remainingQuantity || 0) > 0).length;
+            totalPurchasesEl.innerText = activeCount;
+
+            renderGainsChart();
+
+            let transactions = window.flattenedTransactions || [];
+
+            let filtered = transactions.filter(t => {
+                if (filterVal === 'active') return t.type === 'active_purchase';
+                if (filterVal === 'completed') return t.type === 'sale';
+                return true;
+            });
+
+            if (!filtered.length) {
+                gridContainer.innerHTML = `<div class="loading-overlay" style="grid-column: 1 / -1;">No records found matching filter.</div>`;
+                return;
+            }
+
+            gridContainer.innerHTML = "";
+            filtered.forEach(entry => {
+                let div = document.createElement('div');
+                div.className = "card";
+                div.style.cursor = "default";
+
+                let isSale = entry.type === 'sale';
+                let badgeHtml = isSale 
+                    ? `<span class="badge ${entry.profit >= 0 ? 'highlight' : 'neg-highlight'}">Sale Result: ${entry.profit >= 0 ? '+' : ''}${entry.profit.toLocaleString()} gp</span>`
+                    : `<span class="badge tax-text" style="background: rgba(255,152,0,0.1);">Active Purchase (${(entry.quantity || 0).toLocaleString()} left)</span>`;
+
+                div.innerHTML = `
+                    <div class="card-header">
+                        <img src="${entry.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" loading="lazy" alt="icon">
+                        <div class="card-title">${entry.name || 'Unknown Item'}</div>
+                    </div>
+                    <div style="width: 100%;">
+                        <div class="card-row"><span class="label">Quantity:</span><span>${(entry.quantity || 0).toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">${isSale ? 'Sell Price (Ea):' : 'Buy Price (Ea):'}</span><span>${(isSale ? (entry.sellPrice || 0) : (entry.buyPrice || 0)).toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Total Investment:</span><span style="color: #ffa726; font-weight: bold;">${(entry.totalCost || 0).toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Date:</span><span style="color: var(--text-muted); font-size: 0.7rem;">${entry.date || ''}</span></div>
+                        <div class="card-badges" style="margin-top: 4px;">${badgeHtml}</div>
+                        <div style="display: flex; gap: 6px; margin-top: 8px; pt-8px; border-top: 1px solid var(--border-color);">
+                            ${!isSale ? `<button onclick="openQuickSaleModal(${entry.id})" style="flex: 1; background: var(--accent-orange); color: #fff; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">💰 Sell</button>` : ``}
+                            <button onclick="deleteTransactionEntry(${entry.id}, ${isSale})" style="flex: 1; background: #2c1a1a; color: var(--neg-highlight); border: 1px solid #444; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Delete</button>
+                        </div>
+                    </div>
+                `;
+                gridContainer.appendChild(div);
+            });
+        }
+
+        function renderGainsChart() {
+            const ctx = document.getElementById('gainsPerformanceChart').getContext('2d');
+            if (gainsChartObj) gainsChartObj.destroy();
+
+            let chronological = [...userSalesHistory].reverse();
+            let labels = [];
+            let cumulativeData = [];
+            let runningSum = 0;
+
+            if (chronological.length === 0) {
+                labels = ["Start"];
+                cumulativeData = [0];
+            } else {
+                chronological.forEach((entry, idx) => {
+                    runningSum += (entry.profit || 0);
+                    labels.push(`#${idx + 1} (${entry.name || 'Item'})`);
+                    cumulativeData.push(runningSum);
+                });
+            }
+
+            gainsChartObj = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cumulative Realized Profit (gp)',
+                        data: cumulativeData,
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        pointRadius: 0,
+                        pointHitRadius: 0,
+                        pointHoverRadius: 0,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#aaa', maxTicksLimit: 8 }, grid: { color: '#222' } },
+                        y: { ticks: { color: '#aaa', callback: v => v.toLocaleString() + ' gp' }, grid: { color: '#222' } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
+        }
+
+        function openGainsDropdown(type) {
+            filterGainsDropdown(type);
+        }
+
+        function filterGainsDropdown(type) {
+            const inputEl = document.getElementById('gainsItemSearchInputBuy');
+            const listEl = document.getElementById('gainsDropdownListBuy');
+            const inputVal = inputEl.value.toUpperCase();
+            
+            let sortedItems = Object.values(cachedItemsMap).sort((a, b) => a.name.localeCompare(b.name));
+            let filtered = sortedItems.filter(item => item.name.toUpperCase().includes(inputVal));
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `<div style="padding: 8px 12px; font-size: 0.8rem; color: var(--text-muted);">No items found</div>`;
+                listEl.classList.add('open');
+                return;
+            }
+
+            listEl.innerHTML = "";
+            filtered.forEach(item => {
+                let div = document.createElement('div');
+                div.className = "searchable-dropdown-item";
+                div.innerHTML = `<img src="${item.icon}" alt="icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'"><span>${item.name}</span>`;
+                div.onmousedown = () => selectGainsItem(item);
+                listEl.appendChild(div);
+            });
+            listEl.classList.add('open');
+        }
+
+        function selectGainsItem(item) {
+            document.getElementById('gainsItemSearchInputBuy').value = item.name;
+            document.getElementById('gainsSelectedItemIdBuy').value = item.id;
+            document.getElementById('gainsBuyInputPrice').value = item.buy || 0;
+            document.getElementById('gainsDropdownListBuy').classList.remove('open');
+        }
+
+        function openAuthModal() {
+            if (currentUser) return;
+            isRegisterMode = false;
+            isForgotPasswordMode = false;
+            document.getElementById('authModalTitle').innerText = "Account Login";
+            document.getElementById('authSubmitButton').innerText = "Sign In";
+            document.getElementById('authTogglePrompt').innerText = "Don't have an account?";
+            document.getElementById('authToggleLink').innerText = "Register";
+            document.getElementById('forgotPasswordLink').style.display = 'inline';
+            document.getElementById('passwordContainer').style.display = 'block';
+            document.getElementById('authMessageError').innerText = "";
+            document.getElementById('authEmailInput').value = "";
+            document.getElementById('authPasswordInput').value = "";
+            document.getElementById('authPasswordInput').setAttribute('autocomplete', 'current-password');
+            document.getElementById('passwordReqContainer').style.display = 'none';
+            document.getElementById('authModal').style.display = "block";
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').style.display = "none";
+        }
+
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            isForgotPasswordMode = false;
+            const passInput = document.getElementById('authPasswordInput');
+            const reqContainer = document.getElementById('passwordReqContainer');
+            document.getElementById('passwordContainer').style.display = 'block';
+            document.getElementById('forgotPasswordLink').style.display = 'inline';
+
+            if (isRegisterMode) {
+                document.getElementById('authModalTitle').innerText = "Create Account";
+                document.getElementById('authSubmitButton').innerText = "Register";
+                document.getElementById('authTogglePrompt').innerText = "Already have an account?";
+                document.getElementById('authToggleLink').innerText = "Sign In";
+                passInput.setAttribute('autocomplete', 'new-password');
+                passInput.setAttribute('required', 'true');
+                reqContainer.style.display = 'flex';
+                checkPasswordStrength(passInput.value);
+            } else {
+                document.getElementById('authModalTitle').innerText = "Account Login";
+                document.getElementById('authSubmitButton').innerText = "Sign In";
+                document.getElementById('authTogglePrompt').innerText = "Don't have an account?";
+                document.getElementById('authToggleLink').innerText = "Register";
+                passInput.setAttribute('autocomplete', 'current-password');
+                passInput.setAttribute('required', 'true');
+                reqContainer.style.display = 'none';
+            }
+            document.getElementById('authMessageError').innerText = "";
+        }
+
+        function toggleForgotPasswordMode() {
+            isForgotPasswordMode = !isForgotPasswordMode;
+            isRegisterMode = false;
+            const titleEl = document.getElementById('authModalTitle');
+            const submitBtn = document.getElementById('authSubmitButton');
+            const passContainer = document.getElementById('passwordContainer');
+            const reqContainer = document.getElementById('passwordReqContainer');
+            const toggleDiv = document.getElementById('authTogglePrompt').parentElement;
+            const forgotLink = document.getElementById('forgotPasswordLink');
+
+            if (isForgotPasswordMode) {
+                titleEl.innerText = "Reset Password";
+                submitBtn.innerText = "Send Recovery Email";
+                passContainer.style.display = 'none';
+                reqContainer.style.display = 'none';
+                document.getElementById('authPasswordInput').removeAttribute('required');
+                toggleDiv.style.display = 'none';
+                forgotLink.innerText = "Back to Login";
+            } else {
+                titleEl.innerText = "Account Login";
+                submitBtn.innerText = "Sign In";
+                passContainer.style.display = 'block';
+                document.getElementById('authPasswordInput').setAttribute('required', 'true');
+                toggleDiv.style.display = 'block';
+                forgotLink.innerText = "Forgot Password?";
+            }
+            document.getElementById('authMessageError').innerText = "";
+        }
+
+        function checkPasswordStrength(password) {
+            if (!isRegisterMode) return;
+
+            const hasLength = password.length >= 8;
+            const hasUpper = /[A-Z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
+            const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+            updateReqItem('reqLength', hasLength, 'At least 8 characters');
+            updateReqItem('reqUpper', hasUpper, 'One uppercase letter');
+            updateReqItem('reqNumber', hasNumber, 'One number');
+            updateReqItem('reqSpecial', hasSpecial, 'One special character (!@#$%^&*)');
+        }
+
+        function updateReqItem(elementId, isMet, text) {
+            const el = document.getElementById(elementId);
+            if (isMet) {
+                el.className = "req-item met";
+                el.innerText = `✔️ ${text}`;
+            } else {
+                el.className = "req-item";
+                el.innerText = `❌ ${text}`;
+            }
+        }
+
+        async function handleAuthSubmit() {
+            const email = document.getElementById('authEmailInput').value.trim();
+            const password = document.getElementById('authPasswordInput').value;
+            const errorEl = document.getElementById('authMessageError');
+            errorEl.innerText = "";
+
+            if (!email) {
+                errorEl.innerText = "Please enter your email address.";
+                return;
+            }
+
+            try {
+                if (isForgotPasswordMode) {
+                    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                        redirectTo: window.location.origin + window.location.pathname,
+                    });
+                    if (error) throw error;
+                    alert("Password recovery email sent! Check your inbox for the reset link.");
+                    closeAuthModal();
+                    return;
+                }
+
+                if (!password) {
+                    errorEl.innerText = "Please enter your password.";
+                    return;
+                }
+
+                if (isRegisterMode) {
+                    const hasLength = password.length >= 8;
+                    const hasUpper = /[A-Z]/.test(password);
+                    const hasNumber = /[0-9]/.test(password);
+                    const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+                    if (!hasLength || !hasUpper || !hasNumber || !hasSpecial) {
+                        errorEl.innerText = "Please meet all password requirements.";
+                        return;
+                    }
+
+                    const { error } = await supabaseClient.auth.signUp({ 
+                        email, 
+                        password,
+                        options: {
+                            emailRedirectTo: window.location.origin + window.location.pathname
+                        }
+                    });
+                    if (error) throw error;
+                    alert("Registration successful! Check your email to verify your account.");
+                    closeAuthModal();
+                } else {
+                    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                    closeAuthModal();
+                }
+            } catch (err) {
+                errorEl.innerText = err.message || "Authentication failed.";
+            }
+        }
+
+        async function handleSignOut() {
+            try {
+                await supabaseClient.auth.signOut();
+            } catch (err) {
+                console.error("Sign out error:", err);
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+            setTimeout(() => {
+                if (currentView === 'home' && homeDataCache) {
+                    renderHomeView(homeDataCache);
+                }
+            }, 300);
+        }
+
+        function toggleProductionMenu() {
+            const submenu = document.getElementById('productionSubmenu');
+            submenu.classList.toggle('open');
+        }
+
+        function toggleSubmenu(submenuId) {
+            const element = document.getElementById(submenuId);
+            element.classList.toggle('open');
+        }
+
+        function toggleCollapsibleBox() {
+            const content = document.getElementById('collapsibleContent');
+            const arrow = document.getElementById('collapsibleArrow');
+            content.classList.toggle('open');
+            arrow.innerText = content.classList.contains('open') ? '▲' : '▼';
+        }
+
+        function getOptimalItemCount() {
+            let containerWidth = document.body.clientWidth - 40; 
+            let cols = Math.floor((containerWidth + 8) / 173);
+            cols = Math.max(2, cols); 
+            let count = cols;
+            while (count < 20) { count += cols; }
+            return count;
+        }
+
+        function calculateDataRating(item) {
+            let rating = "Poor", cssClass = "neg-highlight", desc = "", vol = item.volume;
+            if (vol > 50000 && item.margin > 0) {
+                rating = "Excellent"; cssClass = "highlight";
+                desc = `🔥 Heavy market activity (${vol.toLocaleString()} traded in 24h). Offers fill instantly with zero tracking lag.`;
+            } else if (vol > 5000) {
+                rating = "Good"; cssClass = "highlight";
+                desc = `🟢 Healthy liquidity (${vol.toLocaleString()} trades in 24h). Reliable volume ensures buy and sell orders clear smoothly.`;
+            } else if (vol > 1000) {
+                rating = "Fair"; cssClass = "tax-text";
+                desc = `🟡 Moderate movement (${vol.toLocaleString()} trades in 24h). Expect occasional wait times on limits.`;
+            } else if (vol < 100) {
+                rating = "Stale"; cssClass = "neg-highlight";
+                desc = `⚠️ Dangerously low volume (${vol.toLocaleString()} traded in 24h). High turnover risks trapping your cash.`;
+            } else {
+                rating = "Poor"; cssClass = "neg-highlight";
+                desc = `⚠️ Slow turnover (${vol.toLocaleString()} trades in 24h). Thin volume means high price volatility.`;
+            }
+            return { text: rating, class: cssClass, description: desc };
+        }
+
+        function calculateAIConfidence(item) {
+            let score = 50; 
+            if (item.volume >= 100000) score += 25;
+            else if (item.volume >= 10000) score += 20;
+            else if (item.volume >= 1000) score += 10;
+            else if (item.volume < 200) score -= 20;
+
+            let roi = item.buy > 0 ? (item.margin / item.buy) * 100 : 0;
+            if (roi >= 1 && roi <= 12) score += 20; 
+            else if (roi > 12 && roi <= 25) score += 5;
+            else if (roi > 25) score -= 20; 
+            else if (roi < 0.2) score -= 10; 
+
+            if (item.trend === "Rising") score += 15;
+            else if (item.trend === "Stable") score += 10;
+            else if (item.trend === "Falling") score -= 15;
+
+            if (item.limit > 0 && item.volume >= item.limit) score += 10;
+            score = Math.max(5, Math.min(99, score));
+
+            let rating = "Low", badgeClass = "neg-highlight";
+            if (score >= 70) { rating = "High"; badgeClass = "highlight"; } 
+            else if (score >= 45) { rating = "Medium"; badgeClass = "tax-text"; }
+
+            return { score, rating, badgeClass, roiPct: roi.toFixed(2) };
+        }
+
+        async function queryTurso(sql) {
+            try {
+                let response = await fetch(TURSO_URL, {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${TURSO_TOKEN}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ requests: [{ type: "execute", stmt: { sql: sql } }, { type: "close" }] })
+                });
+                let result = await response.json();
+                if (result.results && result.results[0]?.type === "error") throw new Error("Turso Error: " + result.results[0].error.message);
+                if (result.results && result.results[0]?.response?.result) return result.results[0].response.result.rows;
+                throw new Error("Invalid structure: " + JSON.stringify(result));
+            } catch (err) {
+                console.error("Turso Fetch Error:", err);
+                throw err;
+            }
+        }
+
+        async function fetchWikiMapping() {
+            if (Object.keys(wikiMapping).length > 0) return wikiMapping;
+            try {
+                let res = await fetch("https://prices.runescape.wiki/api/v1/osrs/mapping");
+                let data = await res.json();
+                data.forEach(item => { wikiMapping[item.id] = item; });
+            } catch (e) {
+                throw new Error("Failed to load OSRS Wiki mapping.");
+            }
+            return wikiMapping;
+        }
+
+        async function loadMarketData() {
+            if (Object.keys(cachedItemsMap).length > 0) return cachedItemsMap;
+            let mapping = await fetchWikiMapping();
+            let rows = await queryTurso(`
+                SELECT i.id, i.name, i.buy_limit, 
+                       p.high_price, p.low_price, 
+                       v.high_volume, v.low_volume,
+                       v.high_price AS avg_high_24h, v.low_price AS avg_low_24h
+                FROM f2p_items i
+                LEFT JOIN price_history p ON i.id = p.item_id AND p.timestamp = (SELECT MAX(timestamp) FROM price_history WHERE item_id = i.id)
+                LEFT JOIN price_history v ON i.id = v.item_id AND v.timestep = '24h' AND v.timestamp = (SELECT MAX(timestamp) FROM price_history WHERE item_id = i.id AND timestep = '24h')
+            `);
+
+            let lookup = {};
+            rows.forEach(r => {
+                let id = safeInt(r[0]?.value);
+                let name = r[1]?.value || "Unknown Item";
+                let limit = safeInt(r[2]?.value);
+                let sell = safeInt(r[3]?.value);
+                let buy = safeInt(r[4]?.value);
+                let highVol = safeInt(r[5]?.value);
+                let lowVol = safeInt(r[6]?.value);
+                let volume = highVol + lowVol;
+                let avgHigh24 = safeInt(r[7]?.value);
+                let avgLow24 = safeInt(r[8]?.value);
+
+                let meta = mapping[id] || {};
+                let icon = meta.icon ? (meta.icon.startsWith("http") ? meta.icon : "https://oldschool.runescape.wiki/images/" + meta.icon.replace(/ /g, "_")) : "https://oldschool.runescape.wiki/images/Placeholder.png";
+                let alchVal = safeInt(meta.highalch);
+                
+                let tax = sell > 0 ? Math.min(Math.floor(sell * 0.01), 5000000) : 0;
+                let margin = 0;
+
+                if (buy > 0 && sell > 0) {
+                    if (id === 13190) {
+                        let unbindFee = Math.floor(sell * 0.10);
+                        margin = sell - buy - tax - unbindFee;
+                    } else {
+                        margin = sell - buy - tax;
+                    }
+                }
+
+                let alchProfit = (alchVal > 0 && buy > 0) ? (alchVal - buy - 561) : 0;
+                let currentMid = (sell + buy) / 2;
+                let pastMid = (avgHigh24 + avgLow24) / 2;
+                let trend = "Stable", trendClass = "tax-text", trendIcon = "⚖️";
+
+                if (pastMid > 0 && currentMid > 0) {
+                    let diff = ((currentMid - pastMid) / pastMid) * 100;
+                    if (diff > 0.8) { trend = "Rising"; trendClass = "highlight"; trendIcon = "📈"; } 
+                    else if (diff < -0.8) { trend = "Falling"; trendClass = "neg-highlight"; trendIcon = "📉"; }
+                }
+
+                let itemObj = {
+                    id, name, icon, buy, sell, high: sell, low: buy, tax, margin, volume, limit,
+                    alch_value: alchVal, alch_profit: alchProfit, trend, trendClass, trendIcon
+                };
+
+                let ai = calculateAIConfidence(itemObj);
+                itemObj.aiScore = ai.score;
+                itemObj.aiRating = ai.rating;
+                itemObj.aiBadgeClass = ai.badgeClass;
+                itemObj.roiPct = ai.roiPct;
+                
+                let dRate = calculateDataRating(itemObj);
+                itemObj.dataRatingText = dRate.text;
+                itemObj.dataRatingClass = dRate.class;
+                itemObj.dataRatingDesc = dRate.description;
+
+                lookup[id] = itemObj;
+            });
+
+            cachedItemsMap = lookup;
+            return lookup;
+        }
+
+        async function getCalculatedRecipes() {
+            let itemLookup = await loadMarketData();
+            let mapping = await fetchWikiMapping();
+            let natureRune = itemLookup[561];
+            let naturePrice = natureRune ? natureRune.low : 561;
+            let playerRcLevel = safeInt(document.getElementById('rcPlayerLevel')?.value) || 1;
+
+            let output = [];
+            F2P_RECIPES.forEach(recipe => {
+                let product = itemLookup[recipe.id];
+                if (!product || product.high <= 0) return;
+
+                let yieldQty = recipe.yield_amount || 1;
+                if (recipe.type === 'runecrafting') {
+                    let subType = recipe.name.toLowerCase().split(' ')[0];
+                    yieldQty = getRunecraftYield(subType, playerRcLevel);
+                }
+
+                let ingredients = [];
+                let cost = 0;
+                let valid = true;
+
+                recipe.ing.forEach(([ingId, ingName, qty]) => {
+                    let ingItem = itemLookup[ingId];
+                    if (!ingItem || ingItem.low <= 0) { valid = false; return; }
+                    let lineCost = ingItem.low * qty;
+                    cost += lineCost;
+                    
+                    let meta = mapping[ingId] || {};
+                    let ingIcon = meta.icon ? (meta.icon.startsWith("http") ? meta.icon : "https://oldschool.runescape.wiki/images/" + meta.icon.replace(/ /g, "_")) : "https://oldschool.runescape.wiki/images/Placeholder.png";
+                    ingredients.push({ id: ingId, name: ingName, quantity: qty, price: ingItem.low, cost: lineCost, icon: ingIcon });
+                });
+
+                if (!valid) return;
+
+                let singleSell = product.high;
+                let sell = singleSell * yieldQty;
+                let singleTax = singleSell > 0 ? Math.min(Math.floor(singleSell * 0.01), 5000000) : 0;
+                let tax = singleTax * yieldQty;
+                let profit = sell - cost - tax;
+                
+                let alchVal = safeInt(mapping[recipe.id]?.highalch);
+                let alchProfit = alchVal > 0 ? (alchVal * yieldQty) - cost - (naturePrice * yieldQty) : 0;
+                let metaProd = mapping[recipe.id] || {};
+                let prodIcon = metaProd.icon ? (metaProd.icon.startsWith("http") ? metaProd.icon : "https://oldschool.runescape.wiki/images/" + metaProd.icon.replace(/ /g, "_")) : "https://oldschool.runescape.wiki/images/Placeholder.png";
+
+                output.push({
+                    id: recipe.id, name: recipe.name, type: recipe.type, level: recipe.level, yield_amount: yieldQty,
+                    icon: prodIcon, ingredients: ingredients, cost: cost, sell: sell, tax: tax, profit: profit,
+                    margin: cost > 0 ? (profit / cost) * 100 : 0, alch_value: alchVal, alch_profit: alchProfit,
+                    trend: product.trend || "Stable", trendClass: product.trendClass || "tax-text", trendIcon: product.trendIcon || "⚖️",
+                    aiScore: product.aiScore || 50, aiRating: product.aiRating || "Medium", aiBadgeClass: product.aiBadgeClass || "tax-text",
+                    dataRatingText: product.dataRatingText || "Poor", dataRatingClass: product.dataRatingClass || "neg-highlight", dataRatingDesc: product.dataRatingDesc || "",
+                    volume: product.volume || 0, limit: product.limit || 0
+                });
+            });
+
+            return output;
+        }
+
+        async function initDashboard() {
+            updateViewToggleButton();
+            await initAuth();
+            try {
+                let itemsMap = await loadMarketData();
+                renderHomeView(Object.values(itemsMap));
+                renderHomeFavoritesSection(itemsMap);
+                await updateHomeHeaderStats();
+            } catch (err) {
+                document.getElementById('recContainer').innerHTML = `<div class="error-overlay">❌ Initialization Failed: ${err.message}</div>`;
+            }
+        }
+
+        function toggleViewMode() {
+            currentViewMode = currentViewMode === 'grid' ? 'table' : 'grid';
+            localStorage.setItem('osrs_f2p_view', currentViewMode);
+            updateViewToggleButton();
+            filterAndSortData();
+        }
+
+        function updateViewToggleButton() {
+            const btn = document.getElementById('viewToggleBtn');
+            if (btn) { btn.innerText = currentViewMode === 'grid' ? '📄 Table View' : '🔲 Grid View'; }
+        }
+
+        function switchView(viewName, btn) {
+            if ((viewName === 'favorites' || viewName === 'gains') && !currentUser) {
+                alert("Please sign in to access this view.");
+                openAuthModal();
+                return;
+            }
+
+            currentView = viewName;
+            currentPage = 1;
+            document.querySelectorAll('.sidebar-menu .nav-btn').forEach(b => b.classList.remove('active'));
+            if (btn) {
+                btn.classList.add('active');
+            } else {
+                const homeBtn = document.querySelector('.sidebar-menu .nav-btn');
+                if (homeBtn) homeBtn.classList.add('active');
+            }
+
+            document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+            document.getElementById('view-' + viewName).classList.add('active');
+
+            document.getElementById('sidebar').classList.remove('open');
+            closeUserDropdown();
+
+            if (viewName === 'home') {
+                loadMarketData().then(async itemsMap => {
+                    renderHomeView(Object.values(itemsMap));
+                    renderHomeFavoritesSection(itemsMap);
+                    await updateHomeHeaderStats();
+                });
+            } else if (viewName === 'flips') {
+                sortField = "volume"; sortAsc = false;
+                document.getElementById('tableHeaders').innerHTML = `
+                    <th>⭐</th><th>Icon</th><th onclick="toggleSort('name')">Item ↕</th><th onclick="toggleSort('buy')">Buy ↕</th><th onclick="toggleSort('sell')">Sell ↕</th>
+                    <th onclick="toggleSort('tax')">Tax ↕</th><th onclick="toggleSort('margin')">Profit ↕</th><th onclick="toggleSort('trend')">24h Trend ↕</th>
+                    <th onclick="toggleSort('aiScore')">AI Confidence ↕</th><th onclick="toggleSort('volume')">Volume ↕</th><th onclick="toggleSort('limit')">Limit ↕</th>
+                `;
+                filterAndSortData();
+            } else if (viewName === 'favorites') {
+                loadMarketData().then(itemsMap => renderFavoritesView(itemsMap));
+            } else if (viewName === 'gains') {
+                loadMarketData().then(() => renderGainsView());
+            } else if (viewName === 'alch') {
+                sortField = "alch_profit"; sortAsc = false;
+                filterAndSortData();
+            }
+        }
+
+        function setProductionCategory(category, filter, btn) {
+            currentView = "production";
+            currentProductionCategory = category;
+            currentSubFilter = filter;
+            currentPage = 1;
+
+            document.querySelectorAll('.sidebar-menu .nav-btn, .sub-nav-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            document.getElementById('prodMenuBtn').classList.add('active');
+
+            document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+            document.getElementById('view-production').classList.add('active');
+
+            let titleName = "Production & Crafting Hub";
+            let rcConfigEl = document.getElementById('rcLevelConfigContainer');
+
+            if (filter.startsWith('crafting_')) titleName = "Crafting Hub (" + filter.replace('crafting_', '').toUpperCase() + ")";
+            else if (filter.startsWith('smithing_')) titleName = "Smithing Hub (" + filter.replace('smithing_', '').toUpperCase() + ")";
+            else if (category === 'cooking') titleName = "Cooking Hub";
+            else if (category === 'runecrafting') titleName = "Runecrafting Hub";
+            
+            document.getElementById('productionTitle').innerText = titleName;
+
+            if (category === 'runecrafting') {
+                rcConfigEl.style.display = 'flex';
+            } else {
+                rcConfigEl.style.display = 'none';
+            }
+
+            document.getElementById('sidebar').classList.remove('open');
+            closeUserDropdown();
+            sortField = "level"; sortAsc = false;
+            filterAndSortData();
+        }
+
+        function renderHomeView(items) {
+            homeDataCache = items;
+            let targetCount = getOptimalItemCount();
+
+            let usable = items.filter(x => x && x.buy > 0 && x.sell > 0 && x.margin > 0 && x.volume > 100 && x.dataRatingText !== 'Stale' && x.dataRatingText !== 'Poor');
+
+            let sorted = [...usable].sort((a, b) => {
+                let capA = a.limit > 0 ? Math.min(a.limit, a.volume / 6) : (a.volume / 6);
+                let capB = b.limit > 0 ? Math.min(b.limit, b.volume / 6) : (b.volume / 6);
+                return ((b.margin * capB) * (b.aiScore / 100)) - ((a.margin * capA) * (a.aiScore / 100));
+            });
+
+            if (sorted.length < targetCount) {
+                let fallback = items.filter(x => x && x.buy > 0 && x.sell > 0 && x.margin > 0 && !sorted.includes(x));
+                fallback.sort((a, b) => b.margin - a.margin);
+                sorted = [...sorted, ...fallback];
+            }
+
+            let finalRecommendations = sorted.slice(0, targetCount);
+            document.getElementById('recSummary').innerText = `⚡ Top ${finalRecommendations.length} Recommended Flips`;
+
+            populateHomeCards('recContainer', finalRecommendations, false);
+        }
+
+        function populateHomeCards(containerId, data, isOvernight) {
+            const container = document.getElementById(containerId);
+            if (!data || data.length === 0) { container.innerHTML = `<div class="loading-overlay">No data available</div>`; return; }
+            container.innerHTML = "";
+            data.forEach((item, idx) => {
+                if (!item) return;
+                let div = document.createElement('div');
+                div.className = "card";
+                div.onclick = () => openGraph(item);
+                let cap = item.limit > 0 ? Math.min(item.limit, item.volume / 6) : (item.volume / 6);
+                let potProfit = Math.floor(item.margin * cap);
+                let timeLabel = "Est 4h Profit";
+                let isFav = userFavorites.includes(item.id);
+
+                div.innerHTML = `
+                    <div class="card-header">
+                        <button class="fav-star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite(${item.id}, event)">${isFav ? '★' : '☆'}</button>
+                        <img src="${item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" loading="lazy" alt="Item Icon" onerror="this.src='https://oldschool.runescape.wiki/images/Placeholder.png'">
+                        <div class="card-title">${idx + 1}. ${item.name || 'Unknown'}</div>
+                    </div>
+                    <div style="width: 100%;">
+                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${(item.buy || 0).toLocaleString()} / ${(item.sell || 0).toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Margin:</span><span class="highlight">+${(item.margin || 0).toLocaleString()} gp (${item.roiPct || 0}%)</span></div>
+                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${(item.volume || 0).toLocaleString()} / ${(item.limit || 0).toLocaleString()}</span></div>
+                        <div class="card-badges">
+                            <span class="badge ${item.trendClass || 'tax-text'}">${item.trendIcon || '⚖️'} ${item.trend || 'Stable'}</span>
+                            <span class="badge ${item.dataRatingClass || 'tax-text'}">Data: ${item.dataRatingText || 'Poor'}</span>
+                        </div>
+                        <div class="card-footer">${timeLabel}: ~${potProfit.toLocaleString()} gp</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function renderFavoritesView(itemsMap) {
+            const grid = document.getElementById('favoritesGrid');
+            let query = document.getElementById('searchFavInput')?.value?.toUpperCase() || "";
+
+            let favItems = userFavorites.map(id => itemsMap[id]).filter(item => item !== undefined);
+            if (query !== "") {
+                favItems = favItems.filter(item => item.name.toUpperCase().includes(query));
+            }
+
+            if (!favItems.length) {
+                grid.innerHTML = `<div class="loading-overlay" style="grid-column: 1 / -1;">No favorite items added yet. Click the star icon on any item to save it here!</div>`;
+                return;
+            }
+
+            grid.innerHTML = "";
+            favItems.forEach(item => {
+                let div = document.createElement('div');
+                div.className = "card";
+                div.onclick = () => openGraph(item);
+                let isFav = true;
+
+                div.innerHTML = `
+                    <div class="card-header">
+                        <button class="fav-star-btn active" onclick="toggleFavorite(${item.id}, event)">★</button>
+                        <img src="${item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" loading="lazy" alt="icon">
+                        <div class="card-title">${item.name || 'Unknown'}</div>
+                    </div>
+                    <div style="width: 100%;">
+                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${(item.buy || 0).toLocaleString()} / ${(item.sell || 0).toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Margin:</span><span class="${(item.margin || 0) > 0 ? 'highlight' : 'neg-highlight'}">+${(item.margin || 0).toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${(item.volume || 0).toLocaleString()} / ${(item.limit || 0).toLocaleString()}</span></div>
+                        <div class="card-badges">
+                            <span class="badge ${item.trendClass || 'tax-text'}">${item.trendIcon || '⚖️'} ${item.trend || 'Stable'}</span>
+                            <span class="badge ${item.dataRatingClass || 'tax-text'}">Data: ${item.dataRatingText || 'Poor'}</span>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(div);
+            });
+        }
+
+        function toggleSort(field) {
+            if (sortField === field) { sortAsc = !sortAsc; } 
+            else { sortField = field; sortAsc = (field === 'name'); }
+            currentPage = 1;
+            filterAndSortData();
+        }
+
+        function changePage(direction) {
+            currentPage += direction;
+            filterAndSortData();
+        }
+
+        function changePageSize() {
+            let select = document.getElementById('pageSizeSelect');
+            pageSize = parseInt(select.value) || 25;
+            currentPage = 1;
+            filterAndSortData();
+        }
+
+        async function filterAndSortData() {
+            try {
+                let sourceData = [];
+                let query = "";
+
+                if (currentView === 'production') {
+                    sourceData = await getCalculatedRecipes();
+                } else if (currentView === 'alch') {
+                    let itemsMap = await loadMarketData();
+                    sourceData = Object.values(itemsMap).filter(x => x && x.alch_value > 0);
+                    query = document.getElementById('searchAlchInput').value.toUpperCase();
+                } else if (currentView === 'flips') {
+                    let itemsMap = await loadMarketData();
+                    sourceData = Object.values(itemsMap);
+                    query = document.getElementById('searchFlipsInput').value.toUpperCase();
+                } else if (currentView === 'favorites') {
+                    let itemsMap = await loadMarketData();
+                    renderFavoritesView(itemsMap);
+                    return;
+                } else if (currentView === 'gains') {
+                    return;
+                }
+
+                let filtered = sourceData.filter(item => {
+                    if (!item) return false;
+                    let matchesSearch = query === "" || (item.name && item.name.toUpperCase().includes(query));
+                    if (currentView === 'production') {
+                        if (currentProductionCategory === 'smithing') {
+                            if (currentSubFilter === 'all') return item.type && item.type.startsWith('smithing_');
+                            return (item.type === currentSubFilter);
+                        } else if (currentProductionCategory === 'crafting') {
+                            if (currentSubFilter === 'all') return item.type && item.type.startsWith('crafting_');
+                            return (item.type === currentSubFilter);
+                        } else if (currentProductionCategory === 'cooking') { 
+                            return (item.type === 'cooking'); 
+                        } else if (currentProductionCategory === 'runecrafting') {
+                            return (item.type === 'runecrafting');
+                        }
+                    }
+                    return matchesSearch;
+                });
+
+                filtered.sort((a, b) => {
+                    let valA = a[sortField] !== undefined ? a[sortField] : 0;
+                    let valB = b[sortField] !== undefined ? b[sortField] : 0;
+                    if (typeof valA === 'string') return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    return sortAsc ? valA - valB : valB - valA;
+                });
+
+                let effectivePageSize = (currentView === 'flips' && currentViewMode === 'grid') ? Math.max(pageSize, 24) : pageSize;
+                let totalPages = Math.ceil(filtered.length / effectivePageSize) || 1;
+                if (currentPage > totalPages) currentPage = totalPages;
+                if (currentPage < 1) currentPage = 1;
+
+                let start = (currentPage - 1) * effectivePageSize;
+                let paginatedData = filtered.slice(start, start + effectivePageSize);
+
+                if (currentView === 'flips') {
+                    document.getElementById('pageFlipsIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
+                    if (currentViewMode === 'grid') {
+                        document.getElementById('tableContainerEl').style.display = 'none';
+                        document.getElementById('gridContainerEl').style.display = 'grid';
+                        renderGrid(paginatedData);
+                    } else {
+                        document.getElementById('gridContainerEl').style.display = 'none';
+                        document.getElementById('tableContainerEl').style.display = 'block';
+                        renderFlipsTable(paginatedData);
+                    }
+                } else if (currentView === 'alch') {
+                    document.getElementById('pageAlchIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
+                    renderAlchTable(paginatedData);
+                } else if (currentView === 'production') {
+                    renderProductionTable(paginatedData);
+                }
+            } catch (err) { console.error("Filtering error:", err); }
+        }
+
+        function renderFlipsTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = "";
+            if (!data.length) { tbody.innerHTML = `<tr><td colspan="10" class="loading-overlay">No items found</td></tr>`; return; }
+            data.forEach(item => {
+                if (!item) return;
+                let tr = document.createElement('tr');
+                tr.onclick = () => openGraph(item);
+                let marginSign = (item.margin || 0) > 0 ? "+" : "";
+                let isFav = userFavorites.includes(item.id);
+
+                tr.innerHTML = `
+                    <td onclick="event.stopPropagation();"><button class="fav-star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite(${item.id}, event)">${isFav ? '★' : '☆'}</button></td>
+                    <td><img src="${item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" width="26" height="26" loading="lazy" alt="icon"></td>
+                    <td><b>${item.name || 'Unknown'}</b></td><td>${(item.buy || 0).toLocaleString()}</td><td>${(item.sell || 0).toLocaleString()}</td>
+                    <td class="tax-text">${(item.tax || 0) > 0 ? '-' + (item.tax || 0).toLocaleString() : '0'}</td><td class="${(item.margin || 0) > 0 ? 'highlight' : 'neg-highlight'}">${marginSign}${(item.margin || 0).toLocaleString()}</td>
+                    <td class="${item.trendClass || 'tax-text'}">${item.trendIcon || '⚖️'} ${item.trend || 'Stable'}</td><td class="${item.aiBadgeClass || 'tax-text'}">${item.aiRating || 'Medium'} (${item.aiScore || 50})</td>
+                    <td>${(item.volume || 0).toLocaleString()}</td><td>${(item.limit || 0).toLocaleString()}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderAlchTable(data) {
+            const tbody = document.getElementById('alchTableBody');
+            tbody.innerHTML = "";
+            if (!data.length) { tbody.innerHTML = `<tr><td colspan="6" class="loading-overlay">No alch items found</td></tr>`; return; }
+            data.forEach(item => {
+                if (!item) return;
+                let tr = document.createElement('tr');
+                tr.onclick = () => openGraph(item);
+                let alchSign = (item.alch_profit || 0) > 0 ? "+" : "";
+                tr.innerHTML = `
+                    <td><img src="${item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" width="26" height="26" loading="lazy" alt="icon"></td>
+                    <td><b>${item.name || 'Unknown'}</b></td><td>${(item.buy || 0).toLocaleString()}</td><td>${(item.alch_value || 0).toLocaleString()}</td>
+                    <td class="${(item.alch_profit || 0) > 0 ? 'alch-highlight' : 'neg-highlight'}">${alchSign}${(item.alch_profit || 0).toLocaleString()}</td><td>${(item.limit || 0).toLocaleString()}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderProductionTable(data) {
+            const tbody = document.getElementById('productionTableBody');
+            tbody.innerHTML = "";
+            if (!data.length) { tbody.innerHTML = `<tr><td colspan="8" class="loading-overlay">No recipes found</td></tr>`; return; }
+            data.forEach(item => {
+                if (!item) return;
+                let tr = document.createElement('tr');
+                tr.onclick = () => openGraph(item);
+                let profitSign = (item.profit || 0) > 0 ? "+" : "";
+                let alchSign = (item.alch_profit || 0) > 0 ? "+" : "";
+                let ingText = (item.ingredients || []).map(ing => `${ing.quantity}x ${ing.name}`).join(', ');
+                let yieldText = (item.yield_amount || 1) > 1 ? ` <span style="color:#aaa; font-size:0.75rem;">(${item.yield_amount}x)</span>` : "";
+
+                tr.innerHTML = `
+                    <td><img src="${item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" width="26" height="26" loading="lazy" alt="icon"></td>
+                    <td><b>${item.name || 'Unknown'}</b>${yieldText}</td><td><span style="color:#FF9800; font-weight:bold;">${item.level || 1}</span></td>
+                    <td class="ing-text">${ingText}</td><td>${(item.cost || 0).toLocaleString()}</td><td>${(item.sell || 0).toLocaleString()}</td>
+                    <td class="${(item.profit || 0) > 0 ? 'highlight' : 'neg-highlight'}">${profitSign}${(item.profit || 0).toLocaleString()}</td>
+                    <td class="${(item.alch_profit || 0) > 0 ? 'alch-highlight' : 'neg-highlight'}">${alchSign}${(item.alch_profit || 0).toLocaleString()}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderGrid(data) {
+            const grid = document.getElementById('gridContainerEl');
+            grid.innerHTML = "";
+            if (!data.length) { grid.innerHTML = `<div class="loading-overlay" style="grid-column: 1 / -1;">No items found</div>`; return; }
+            data.forEach(item => {
+                if (!item) return;
+                let div = document.createElement('div');
+                div.className = "card";
+                div.onclick = () => openGraph(item);
+                let isFav = userFavorites.includes(item.id);
+
+                div.innerHTML = `
+                    <div class="card-header">
+                        <button class="fav-star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite(${item.id}, event)">${isFav ? '★' : '☆'}</button>
+                        <img src="${item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png'}" loading="lazy" alt="icon">
+                        <div class="card-title">${item.name || 'Unknown'}</div>
+                    </div>
+                    <div style="width: 100%;">
+                        <div class="card-row"><span class="label">Buy / Sell:</span><span>${(item.buy || 0).toLocaleString()} / ${(item.sell || 0).toLocaleString()}</span></div>
+                        <div class="card-row"><span class="label">Margin:</span><span class="${(item.margin || 0) > 0 ? 'highlight' : 'neg-highlight'}">+${(item.margin || 0).toLocaleString()} gp</span></div>
+                        <div class="card-row"><span class="label">Vol / Limit:</span><span>${(item.volume || 0).toLocaleString()} / ${(item.limit || 0).toLocaleString()}</span></div>
+                        <div class="card-badges">
+                            <span class="badge ${item.trendClass || 'tax-text'}">${item.trendIcon || '⚖️'} ${item.trend || 'Stable'}</span>
+                            <span class="badge ${item.dataRatingClass || 'tax-text'}">Data: ${item.dataRatingText || 'Poor'}</span>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(div);
+            });
+        }
+
+        async function openGraph(item) {
+            if (!item) return;
+            currentItemId = item.id;
+            activeModalItem = item;
+            document.getElementById('modalTitle').innerText = item.name || 'Unknown';
+            let iconEl = document.getElementById('modalIcon');
+            iconEl.src = item.icon || 'https://oldschool.runescape.wiki/images/Placeholder.png';
+
+            document.getElementById('modalSell').innerText = item.sell ? item.sell.toLocaleString() : '0';
+            document.getElementById('modalBuy').innerText = item.buy ? item.buy.toLocaleString() : '0';
+            document.getElementById('modalMargin').innerHTML = `<span class="highlight">+${(item.margin || item.profit || 0).toLocaleString()} gp</span>`;
+            document.getElementById('modalVolume').innerText = item.volume ? item.volume.toLocaleString() : '0';
+            document.getElementById('modalLimit').innerText = item.limit ? item.limit.toLocaleString() : '0';
+            document.getElementById('modalTrend').innerHTML = `<span class="${item.trendClass || 'tax-text'}">${item.trendIcon || '⚖️'} ${item.trend || 'Stable'}</span>`;
+            
+            let ratingEl = document.getElementById('modalDataRating');
+            ratingEl.className = `tooltip-trigger ${item.dataRatingClass || 'neg-highlight'}`;
+            ratingEl.innerText = item.dataRatingText || 'Poor';
+            document.getElementById('ratingExplanationBox').style.display = "none";
+            document.getElementById('modalAlch').innerText = item.alch_value ? item.alch_value.toLocaleString() + ' gp' : '0 gp';
+
+            document.getElementById('chartModal').style.display = "block";
+
+            if (!itemHistories[currentItemId]) {
+                try {
+                    let historyRows = await queryTurso(`SELECT timestamp, timestep, high_price, low_price, high_volume, low_volume FROM price_history WHERE item_id = ${currentItemId} ORDER BY timestamp ASC`);
+                    let times = [], highs = [], lows = [], volumes = [];
+                    historyRows.forEach(r => {
+                        times.push(safeInt(r[0]?.value));
+                        highs.push(safeInt(r[2]?.value));
+                        lows.push(safeInt(r[3]?.value));
+                        volumes.push(safeInt(r[4]?.value) + safeInt(r[5]?.value));
+                    });
+                    itemHistories[currentItemId] = { raw_times: times, highs: highs, lows: lows, volumes: volumes };
+                } catch (err) { console.error("History fetch error:", err); }
+            }
+            setTimeframe('48h');
+        }
+
+        function toggleRatingExplanation() {
+            let box = document.getElementById('ratingExplanationBox');
+            if (!activeModalItem) return;
+            box.style.display = box.style.display === "block" ? "none" : "block";
+            box.innerText = activeModalItem.dataRatingDesc || "No liquidity breakdown available.";
+        }
+
+        function setTimeframe(range) {
+            ['1h', '48h', '1w', '1m', '3m', '6m'].forEach(r => {
+                let btn = document.getElementById('btn-' + r);
+                if (btn) btn.classList.remove('active');
+            });
+            document.getElementById('btn-' + range).classList.add('active');
+
+            const historyData = itemHistories[currentItemId];
+            if (!historyData || !historyData.raw_times || !historyData.raw_times.length) return;
+
+            const now = historyData.raw_times[historyData.raw_times.length - 1];
+            let cutoffSeconds = now;
+            if (range === '1h') cutoffSeconds = now - 3600;
+            else if (range === '48h') cutoffSeconds = now - (48 * 3600);
+            else if (range === '1w') cutoffSeconds = now - (7 * 24 * 3600);
+            else if (range === '1m') cutoffSeconds = now - (30 * 24 * 3600);
+            else if (range === '3m') cutoffSeconds = now - (90 * 24 * 3600);
+            else if (range === '6m') cutoffSeconds = 0;
+
+            let collectedIndices = [];
+            for (let i = 0; i < historyData.raw_times.length; i++) {
+                if (historyData.raw_times[i] >= cutoffSeconds) collectedIndices.push(i);
+            }
+
+            if (collectedIndices.length > 10) {
+                let step = collectedIndices.length / 10, downsampled = [];
+                for (let j = 0; j < 10; j++) downsampled.push(collectedIndices[Math.floor(j * step)]);
+                downsampled[9] = collectedIndices[collectedIndices.length - 1];
+                collectedIndices = downsampled;
+            }
+
+            let filteredDates = [], filteredHighs = [], filteredLows = [], filteredVolumes = [];
+            collectedIndices.forEach(idx => {
+                filteredDates.push(new Date(historyData.raw_times[idx] * 1000).toISOString().replace('T', ' ').substring(0, 16));
+                filteredHighs.push(historyData.highs[idx]);
+                filteredLows.push(historyData.lows[idx]);
+                filteredVolumes.push(historyData.volumes[idx]);
+            });
+
+            renderCharts(filteredDates, filteredHighs, filteredLows, filteredVolumes);
+        }
+
+        function renderCharts(dates, highs, lows, volumes) {
+            if (priceChartObj) priceChartObj.destroy();
+            priceChartObj = new Chart(document.getElementById('priceChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        { label: 'Sell (High)', data: highs, borderColor: '#00E676', borderWidth: 2, pointRadius: 2, tension: 0.4 },
+                        { label: 'Buy (Low)', data: lows, borderColor: '#FF5252', borderWidth: 2, pointRadius: 2, tension: 0.4 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { ticks: { color: '#aaa', maxTicksLimit: 6 } },
+                        y: { ticks: { color: '#aaa', callback: v => v.toLocaleString() + ' gp' } }
+                    },
+                    plugins: { legend: { labels: { color: '#fff', boxWidth: 10 } } }
+                }
+            });
+
+            if (volumeChartObj) volumeChartObj.destroy();
+            volumeChartObj = new Chart(document.getElementById('volumeChart').getContext('2d'), {
+                type: 'bar',
+                data: { labels: dates, datasets: [{ data: volumes, backgroundColor: 'rgba(33, 150, 243, 0.6)', borderColor: '#2196F3', borderWidth: 1 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { ticks: { color: '#aaa', maxTicksLimit: 6 } },
+                        y: { ticks: { color: '#aaa', callback: v => v.toLocaleString() } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function closeGraph() { document.getElementById('chartModal').style.display = "none"; }
+        window.onclick = function(event) { 
+            if (event.target == document.getElementById('chartModal')) document.getElementById('chartModal').style.display = "none";
+            if (event.target == document.getElementById('logPurchaseModal')) closeLogPurchaseModal();
+            if (event.target == document.getElementById('quickSaleModal')) closeQuickSaleModal();
+            if (event.target == document.getElementById('authModal')) closeAuthModal();
+            if (event.target == document.getElementById('resetPasswordModal')) document.getElementById('resetPasswordModal').style.display = "none";
+            if (!document.getElementById('searchableSelectWrapperBuy').contains(event.target)) {
+                document.getElementById('gainsDropdownListBuy').classList.remove('open');
+            }
+            closeUserDropdown();
+        }
+
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (currentView === 'home' && homeDataCache) {
+                    renderHomeView(homeDataCache);
+                }
+            }, 250);
+        });
+
+        initDashboard();
+    </script>
+</body>
+</html>
