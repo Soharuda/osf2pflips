@@ -1179,6 +1179,7 @@
                 sellPrice: sellPrice,
                 buyPrice: purchase.buyPrice,
                 profit: netProfit,
+                totalCost: purchase.buyPrice * qty,
                 date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
 
@@ -1193,6 +1194,7 @@
                 sellPrice: sellPrice,
                 buyPrice: purchase.buyPrice,
                 profit: netProfit,
+                totalCost: purchase.buyPrice * qty,
                 date: saleEntry.date
             });
 
@@ -1397,7 +1399,7 @@
                     <div style="width: 100%;">
                         <div class="card-row"><span class="label">Quantity:</span><span>${(entry.quantity || 0).toLocaleString()}</span></div>
                         <div class="card-row"><span class="label">${isSale ? 'Sell Price (Ea):' : 'Buy Price (Ea):'}</span><span>${(isSale ? (entry.sellPrice || 0) : (entry.buyPrice || 0)).toLocaleString()} gp</span></div>
-                        ${isSale ? `<div class="card-row"><span class="label">Profit:</span><span class="${(entry.profit || 0) >= 0 ? 'highlight' : 'neg-highlight'}">${(entry.profit || 0) >= 0 ? '+' : ''}${(entry.profit || 0).toLocaleString()} gp</span></div>` : `<div class="card-row"><span class="label">Total Invested:</span><span style="color: #ffa726; font-weight: bold;">${(entry.totalCost || 0).toLocaleString()} gp</span></div>`}
+                        ${isSale ? `<div class="card-row"><span class="label">Total Investment:</span><span style="color: #ffa726; font-weight: bold;">${(entry.totalCost || 0).toLocaleString()} gp</span></div>` : `<div class="card-row"><span class="label">Total Invested:</span><span style="color: #ffa726; font-weight: bold;">${(entry.totalCost || 0).toLocaleString()} gp</span></div>`}
                         <div class="card-row"><span class="label">Date:</span><span style="color: var(--text-muted); font-size: 0.7rem;">${entry.date || ''}</span></div>
                         <div class="card-badges" style="margin-top: 4px;">${badgeHtml}</div>
                         <div style="display: flex; gap: 6px; margin-top: 8px; pt-8px; border-top: 1px solid var(--border-color);">
